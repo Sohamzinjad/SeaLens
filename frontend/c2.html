@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sealens // Tactical Maritime C2 & Forensic Intelligence</title>
+  <title>Sealens — Maritime Surveillance C2 Console</title>
   
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -15,7 +15,7 @@
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter+Tight:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
   <script>
     tailwind.config = {
@@ -23,24 +23,8 @@
       theme: {
         extend: {
           fontFamily: {
-            sans: ['"Plus Jakarta Sans"', '"Inter Tight"', 'sans-serif'],
+            sans: ['"Inter Tight"', '"Plus Jakarta Sans"', 'sans-serif'],
             mono: ['"JetBrains Mono"', '"IBM Plex Mono"', 'monospace'],
-          },
-          colors: {
-            brand: {
-              50: '#eff6ff',
-              100: '#dbeafe',
-              500: '#3b82f6',
-              600: '#2563eb',
-              700: '#1d4ed8',
-            },
-            surface: {
-              base: '#ECECEC',
-              card: 'rgba(255, 255, 255, 0.94)',
-              card2: '#FFFFFF',
-              border: 'rgba(0, 0, 0, 0.08)',
-              borderStrong: 'rgba(0, 0, 0, 0.14)'
-            }
           }
         }
       }
@@ -48,45 +32,61 @@
   </script>
 
   <style>
-    :root {
-      --bg: #ECECEC;
-      --card-bg: rgba(255, 255, 255, 0.94);
-      --border: rgba(0, 0, 0, 0.08);
-      --border-strong: rgba(0, 0, 0, 0.14);
-      --text-main: #0A0A0A;
-      --text-muted: #525252;
-      --text-tertiary: #8A8A8A;
-      --blue: #2563EB;
-      --red: #DC2626;
-      --amber: #D97706;
-      --emerald: #10B981;
-      --purple: #7C3AED;
-    }
-
     body {
-      background-color: var(--bg);
-      color: var(--text-main);
+      background-color: #F8F9FA;
+      color: #0A0A0A;
       overflow: hidden;
-      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-family: 'Inter Tight', 'Plus Jakarta Sans', sans-serif;
     }
 
-    .glass-card {
-      background: rgba(255, 255, 255, 0.92);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(0, 0, 0, 0.08);
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.04);
+    /* FLOATING SURVEILLANCE OVERLAY CARD */
+    .sidebar {
+      position: absolute;
+      left: 16px;
+      top: 16px;
+      max-height: calc(100vh - 88px);
+      width: 380px;
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(24px) saturate(180%);
+      -webkit-backdrop-filter: blur(24px) saturate(180%);
+      border: 1px solid rgba(0, 0, 0, 0.09);
+      border-radius: 28px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.10), 0 4px 12px rgba(0, 0, 0, 0.05);
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      pointer-events: auto;
     }
 
-    .glass-card-subtle {
-      background: rgba(255, 255, 255, 0.75);
-      backdrop-filter: blur(12px);
-      border: 1px solid rgba(0, 0, 0, 0.06);
+    /* MAP CANVAS HIGH-CONTRAST FILTER */
+    .maplibregl-canvas, .mapboxgl-canvas {
+      filter: contrast(1.28) brightness(0.94) saturate(1.15) !important;
+    }
+
+    /* RADIAL MAP VIGNETTE */
+    .map-vignette {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 10;
+      background: radial-gradient(
+        circle at center,
+        transparent 55%,
+        rgba(0, 0, 0, 0.035) 100%
+      );
+    }
+
+    .glass-pill-sleek {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
     }
 
     .custom-scrollbar::-webkit-scrollbar {
-      width: 4px;
-      height: 4px;
+      width: 3px;
+      height: 3px;
     }
     .custom-scrollbar::-webkit-scrollbar-track {
       background: transparent;
@@ -96,587 +96,605 @@
       border-radius: 4px;
     }
 
-    .pulse-glow-red {
-      animation: pulse-red-anim 2s infinite;
+    /* Glowing Highlights */
+    .glow-threat {
+      box-shadow: 0 0 16px rgba(239, 68, 68, 0.7), 0 0 4px rgba(239, 68, 68, 0.9);
     }
-    @keyframes pulse-red-anim {
-      0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.6); }
-      70% { box-shadow: 0 0 0 12px rgba(220, 38, 38, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+    .glow-origin {
+      box-shadow: 0 0 14px rgba(245, 158, 11, 0.6);
     }
-
-    .radar-sweep-light {
-      background: conic-gradient(from 0deg at 50% 50%, rgba(37, 99, 235, 0.25) 0deg, rgba(37, 99, 235, 0) 60deg, rgba(37, 99, 235, 0) 360deg);
-      animation: spin 4s linear infinite;
-    }
-    @keyframes spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
+    .glow-dark {
+      box-shadow: 0 0 20px rgba(225, 29, 72, 0.8);
     }
 
-    /* MapLibre custom popup styling */
+    /* MapLibre custom popup override */
     .maplibregl-popup-content {
       background: transparent !important;
       padding: 0 !important;
       box-shadow: none !important;
+      border: none !important;
     }
     .maplibregl-popup-tip {
       display: none !important;
     }
   </style>
 </head>
-<body class="h-screen w-screen flex flex-col font-sans select-none antialiased bg-[#ECECEC]">
+<body class="h-screen w-screen flex flex-col font-sans select-none antialiased bg-[#F8F9FA]">
 
-  <!-- TOP COMMAND & CONTROL HEADER (Neo-Minimalist Grey & Glass) -->
-  <header class="h-16 bg-[#ECECEC]/90 backdrop-blur-xl border-b border-black/8 px-6 flex items-center justify-between shrink-0 z-30 shadow-sm">
+  <!-- TOP COMMAND CENTER NAVBAR (56px) -->
+  <header class="h-14 bg-[#EFEFEF]/95 backdrop-blur-xl border-b border-black/8 px-6 flex items-center justify-between shrink-0 z-40 relative">
     
-    <!-- Branding & Live Pulse -->
-    <div class="flex items-center space-x-4">
-      <a href="/" class="group flex items-center space-x-3 transition-opacity hover:opacity-85">
-        <div class="relative w-9 h-9 rounded-xl bg-white border border-black/8 shadow-sm flex items-center justify-center overflow-hidden">
-          <div class="absolute inset-0 radar-sweep-light rounded-xl"></div>
-          <i data-lucide="shield" class="w-4 h-4 text-blue-600 relative z-10"></i>
+    <!-- Left Logo & Nav Tabs -->
+    <div class="flex items-center space-x-7">
+      <a href="/" class="flex items-center space-x-2.5 group">
+        <div class="w-6.5 h-6.5 rounded-lg bg-neutral-900 flex items-center justify-center text-white shadow-sm">
+          <i data-lucide="shield" class="w-3.5 h-3.5 text-white"></i>
         </div>
-        <div>
-          <div class="flex items-center space-x-2">
-            <span class="text-sm font-extrabold tracking-tight text-neutral-900">SEALENS</span>
-            <span class="px-2 py-0.5 text-[9px] font-mono font-bold bg-blue-50 text-blue-600 border border-blue-200/80 rounded-full tracking-wider">C2 CONSOLE</span>
-          </div>
-          <div class="flex items-center space-x-2 text-[10px] text-neutral-500 font-mono">
-            <span class="flex items-center text-emerald-600 font-semibold"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse mr-1"></span>SAR+AIS ONLINE</span>
-            <span>•</span>
-            <span id="liveClockUtc" class="text-neutral-600">06:00:00 UTC</span>
-          </div>
-        </div>
+        <span class="text-base font-black tracking-tight text-neutral-900 uppercase">SEALENS</span>
       </a>
 
-      <!-- Quick Back to Landing Page -->
-      <a href="/" class="hidden md:inline-flex items-center space-x-1.5 px-3 py-1 bg-white/80 hover:bg-white text-neutral-700 text-xs font-semibold rounded-full border border-black/8 shadow-sm transition-all hover:scale-[1.02]">
-        <i data-lucide="arrow-left" class="w-3.5 h-3.5 text-neutral-500"></i>
-        <span>Overview</span>
-      </a>
+      <!-- Navigation Links -->
+      <nav class="hidden md:flex items-center space-x-6 text-xs font-semibold text-neutral-500">
+        <a href="/c2" class="text-neutral-900 font-extrabold border-b-2 border-neutral-900 pb-3 pt-3 tracking-wide">
+          C2 Console
+        </a>
+        <a href="/c2" class="hover:text-neutral-900 transition-colors pb-3 pt-3">Detection</a>
+        <a href="/c2" class="hover:text-neutral-900 transition-colors pb-3 pt-3">Data</a>
+        <a href="/c2" class="hover:text-neutral-900 transition-colors pb-3 pt-3">Analysis</a>
+        <a href="/c2" class="hover:text-neutral-900 transition-colors pb-3 pt-3">Reports</a>
+      </nav>
     </div>
 
-    <!-- Scenario Selector & Tactical Actions -->
-    <div class="flex items-center space-x-2.5">
-      
-      <!-- Scenario Selector -->
-      <div class="flex items-center bg-white border border-black/10 shadow-sm rounded-xl px-3 py-1.5 text-xs">
-        <i data-lucide="crosshair" class="w-3.5 h-3.5 text-blue-600 mr-2"></i>
-        <select id="scenarioSelect" class="bg-transparent text-xs text-neutral-900 font-semibold focus:outline-none cursor-pointer pr-2">
-          <option value="scenario_alpha_rogue_tanker">Scenario Alpha: Rogue Tanker (Arabian Sea)</option>
-          <option value="scenario_beta_singapore_strait">Scenario Beta: Confluence (Singapore Strait)</option>
-          <option value="scenario_gamma_lookalike">Scenario Gamma: Look-Alike Alarm (Bay of Bengal)</option>
-        </select>
+    <!-- Right Telemetry & Profile -->
+    <div class="flex items-center space-x-3.5">
+      <!-- GIS GeoJSON Export Button -->
+      <button id="btnExportGeoJSON" class="hidden sm:flex items-center space-x-1.5 px-3 py-1 bg-white hover:bg-neutral-100 text-neutral-800 border border-black/10 rounded-full text-xs font-bold shadow-sm transition-all">
+        <i data-lucide="download" class="w-3.5 h-3.5 text-blue-600"></i>
+        <span>Export GIS</span>
+      </button>
+
+      <!-- Live Status Pill -->
+      <div class="flex items-center space-x-1.5 px-2.5 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-200/80 rounded-full text-[11px] font-bold">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+        <span>LIVE</span>
       </div>
 
-      <!-- Action Button 1: 72h Forward Drift & Landfall Impact -->
-      <button id="btnForwardDrift" class="flex items-center space-x-1.5 px-3.5 py-1.5 bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl text-xs font-semibold shadow-sm transition-all hover:scale-[1.02] active:scale-95">
-        <i data-lucide="compass" class="w-3.5 h-3.5 text-purple-400"></i>
-        <span>72h Landfall</span>
-      </button>
-
-      <!-- Action Button 2: Run GeoTIFF Neural Inference -->
-      <button id="btnGeoTIFF" class="flex items-center space-x-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold shadow-sm shadow-blue-500/20 transition-all hover:scale-[1.02] active:scale-95">
-        <i data-lucide="scan" class="w-3.5 h-3.5 text-blue-200"></i>
-        <span>Run GeoTIFF + CFAR</span>
-      </button>
-
-      <!-- Action Button 3: Forensic Dossier -->
-      <button id="btnDossier" class="flex items-center space-x-1.5 px-3.5 py-1.5 bg-white hover:bg-neutral-50 text-neutral-900 rounded-xl text-xs font-semibold border border-black/10 shadow-sm transition-all hover:scale-[1.02] active:scale-95">
-        <i data-lucide="file-text" class="w-3.5 h-3.5 text-rose-600"></i>
-        <span>Forensic Dossier</span>
-      </button>
-    </div>
-
-    <!-- Quick Stats Telemetry Badges -->
-    <div class="hidden xl:flex items-center space-x-3 text-xs font-mono">
-      <div class="flex items-center space-x-2 bg-white px-3 py-1.5 rounded-xl border border-black/8 shadow-sm">
-        <i data-lucide="satellite" class="w-3.5 h-3.5 text-blue-600"></i>
-        <span class="text-neutral-500">Sensor:</span>
-        <span class="text-neutral-900 font-bold">Sentinel-1 (VV+VH)</span>
+      <!-- Live UTC Clock -->
+      <div id="liveClockUtc" class="text-xs font-semibold text-neutral-600 font-mono">
+        7 Sep 2026 12:35 UTC
       </div>
-      <div class="flex items-center space-x-2 bg-white px-3 py-1.5 rounded-xl border border-black/8 shadow-sm">
-        <i data-lucide="eye" class="w-3.5 h-3.5 text-emerald-600"></i>
-        <span class="text-neutral-500">Tracked:</span>
-        <span id="trackedTargetsBadge" class="text-emerald-700 font-bold">3 AIS // 1 Dark</span>
+
+      <!-- User Profile Badge -->
+      <div class="flex items-center space-x-2 pl-2 border-l border-black/10 cursor-pointer">
+        <div class="w-6.5 h-6.5 rounded-full bg-neutral-800 text-white font-bold text-xs flex items-center justify-center shadow-sm">
+          A
+        </div>
+        <span class="text-xs font-bold text-neutral-800">Ayush</span>
+        <i data-lucide="chevron-down" class="w-3 h-3 text-neutral-500"></i>
       </div>
     </div>
   </header>
 
-  <!-- MAIN MULTI-PANEL WORKSPACE -->
-  <main class="flex-1 flex overflow-hidden relative">
+  <!-- MAIN MAP WORKSPACE -->
+  <main class="flex-1 w-full h-full relative overflow-hidden flex">
+    
+    <!-- Map Canvas Container -->
+    <div id="map" class="absolute inset-0 w-full h-full z-0"></div>
 
-    <!-- LEFT INTELLIGENCE DRAWER -->
-    <aside class="w-80 lg:w-96 bg-white/92 backdrop-blur-xl border-r border-black/8 flex flex-col shrink-0 z-20 overflow-hidden shadow-lg">
+    <!-- RADIAL MAP VIGNETTE -->
+    <div class="map-vignette"></div>
+
+    <!-- FLOATING SURVEILLANCE OVERLAY CARD -->
+    <aside class="sidebar p-5 space-y-4 overflow-y-auto custom-scrollbar">
       
-      <!-- Incident Surveillance Zone Banner -->
-      <div class="p-4 border-b border-black/8 bg-gradient-to-b from-neutral-50 to-transparent">
-        <div class="flex items-center justify-between mb-1.5">
-          <span class="text-[10px] font-mono text-blue-600 uppercase tracking-widest font-bold flex items-center">
-            <span class="w-1.5 h-1.5 bg-blue-600 rounded-full mr-1.5 animate-ping"></span>
-            SECTOR INTELLIGENCE
+      <!-- OPERATIONAL VIEW SELECTOR -->
+      <div class="space-y-1 border-b border-black/8 pb-3">
+        <div class="flex items-center justify-between">
+          <span class="text-[9px] font-mono font-bold text-neutral-500 uppercase tracking-widest">OPERATIONAL VIEW</span>
+          <select id="scenarioSelect" class="bg-white border border-black/10 text-[11px] font-semibold text-neutral-800 rounded-xl px-2 py-0.5 focus:outline-none cursor-pointer shadow-sm">
+            <option value="scenario_beta_singapore_strait" selected>Singapore Strait (TSS)</option>
+            <option value="scenario_alpha_rogue_tanker">Arabian Sea (Mumbai Outer)</option>
+            <option value="scenario_gamma_lookalike">Bay of Bengal (Look-Alike)</option>
+          </select>
+        </div>
+
+        <h1 id="regionName" class="text-xl font-black tracking-tight text-neutral-900 pt-1">Singapore Strait</h1>
+        <h2 id="regionSubtitle" class="text-[11px] font-bold text-neutral-500 tracking-wide uppercase">Traffic Separation Scheme (TSS)</h2>
+      </div>
+
+      <!-- HERO INCIDENT ALERT CARD -->
+      <div id="spillAlertBox" class="p-3.5 bg-rose-500/10 border border-rose-300 rounded-2xl space-y-1">
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] font-mono font-extrabold uppercase text-rose-700 tracking-wider flex items-center">
+            <span class="w-2 h-2 rounded-full bg-rose-600 animate-ping mr-1.5"></span>
+            INCIDENT DETECTED
           </span>
-          <span id="incidentStatusBadge" class="px-2.5 py-0.5 text-[9px] font-mono font-bold rounded-full uppercase bg-rose-50 text-rose-600 border border-rose-200">VERIFIED SPILL</span>
+          <span class="px-2 py-0.5 text-[9px] font-mono font-bold rounded-full bg-rose-600 text-white">CRITICAL</span>
         </div>
-        <h2 id="regionName" class="text-base font-bold text-neutral-900 leading-tight">Loading sector...</h2>
-        <p id="scenarioDesc" class="text-[11px] text-neutral-600 mt-1 leading-relaxed line-clamp-2">...</p>
+        <div class="text-sm font-extrabold text-neutral-900">Confirmed Mineral Oil Spill</div>
+        <div class="text-[10px] text-neutral-600 font-mono">SAR Damping: 9.2 dB (High Contrast)</div>
       </div>
 
-      <!-- Tab Navigation Switcher -->
-      <div class="grid grid-cols-3 border-b border-black/8 bg-neutral-100/60 p-1 gap-1 text-[11px] font-mono font-semibold">
-        <button id="tabBtnSAR" class="py-2 text-center text-blue-700 rounded-lg bg-white shadow-sm transition-all flex items-center justify-center space-x-1 font-bold">
-          <i data-lucide="satellite" class="w-3.5 h-3.5 text-blue-600"></i>
-          <span>SAR AI</span>
-        </button>
-        <button id="tabBtnPhysics" class="py-2 text-center text-neutral-600 hover:text-neutral-900 rounded-lg transition-all flex items-center justify-center space-x-1">
-          <i data-lucide="wind" class="w-3.5 h-3.5"></i>
-          <span>Physics</span>
-        </button>
-        <button id="tabBtnThreat" class="py-2 text-center text-neutral-600 hover:text-neutral-900 rounded-lg transition-all flex items-center justify-center space-x-1">
-          <i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i>
-          <span>Threat</span>
-        </button>
-      </div>
-
-      <!-- TAB 1 CONTENT: SAR SATELLITE EARTH OBSERVATION -->
-      <div id="tabContentSAR" class="flex-1 p-4 space-y-3.5 overflow-y-auto custom-scrollbar">
+      <!-- HERO NUMBERS (Instant Grasp Typography) -->
+      <div class="grid grid-cols-2 gap-2.5 pt-1">
         
-        <!-- SAR Metric Tiles -->
-        <div class="grid grid-cols-2 gap-2 text-xs">
-          <div class="glass-card-subtle p-2.5 rounded-xl">
-            <span class="text-[10px] font-mono text-neutral-500 uppercase block">Sensor / Orbit</span>
-            <span id="sarSensor" class="font-mono text-neutral-900 font-bold text-xs">Sentinel-1A</span>
-          </div>
-          <div class="glass-card-subtle p-2.5 rounded-xl">
-            <span class="text-[10px] font-mono text-neutral-500 uppercase block">Acquisition (UTC)</span>
-            <span id="sarTime" class="font-mono text-blue-600 font-bold text-xs">06:00:00Z</span>
-          </div>
-          <div class="glass-card-subtle p-2.5 rounded-xl">
-            <span class="text-[10px] font-mono text-neutral-500 uppercase block">Slick Surface Area</span>
-            <span id="slickArea" class="font-mono text-rose-600 font-extrabold text-sm">4.82 km²</span>
-          </div>
-          <div class="glass-card-subtle p-2.5 rounded-xl">
-            <span class="text-[10px] font-mono text-neutral-500 uppercase block">Est. Discharge Volume</span>
-            <span id="slickVol" class="font-mono text-amber-600 font-extrabold text-sm">14.5 m³</span>
-          </div>
+        <!-- Hero Metric 1: Affected Area -->
+        <div class="bg-white/90 border border-black/8 p-3 rounded-2xl space-y-0.5 shadow-sm">
+          <span class="text-[10px] font-mono text-neutral-500 uppercase tracking-wider block">Affected Area</span>
+          <div id="slickArea" class="font-black text-rose-600 text-2xl leading-none">2.29 <span class="text-xs font-bold text-rose-800">km²</span></div>
         </div>
 
-        <!-- PyTorch U-Net Neural Confidence Card -->
-        <div class="glass-card p-3.5 rounded-xl space-y-2 border-blue-200/60">
-          <div class="flex justify-between items-center text-xs">
-            <span class="text-neutral-700 font-mono text-[11px] flex items-center space-x-1.5">
-              <i data-lucide="cpu" class="w-3.5 h-3.5 text-blue-600"></i>
-              <span>PyTorch U-Net Confidence:</span>
-            </span>
-            <span id="aiConfidenceText" class="font-mono font-bold text-blue-600">92.0%</span>
-          </div>
-          <div class="w-full h-2 bg-neutral-200 rounded-full overflow-hidden p-0.5">
-            <div id="aiConfidenceBar" class="h-full bg-blue-600 rounded-full transition-all duration-500" style="width: 92%"></div>
-          </div>
-          <div id="lookalikeAlert" class="p-2 rounded-lg text-[10px] font-mono leading-tight bg-blue-50 border border-blue-200 text-blue-800">
-            Confirmed Mineral Oil Slick (High Radar Contrast)
-          </div>
+        <!-- Hero Metric 2: Estimated Volume -->
+        <div class="bg-white/90 border border-black/8 p-3 rounded-2xl space-y-0.5 shadow-sm">
+          <span class="text-[10px] font-mono text-neutral-500 uppercase tracking-wider block">Est. Volume</span>
+          <div id="slickVol" class="font-black text-amber-600 text-2xl leading-none">5.0 <span class="text-xs font-bold text-amber-800">m³</span></div>
         </div>
-
-        <!-- Polarimetric Radar Properties -->
-        <div class="glass-card-subtle p-3 rounded-xl text-[10px] font-mono space-y-1.5">
-          <div class="flex justify-between text-neutral-600">
-            <span>Radar Backscatter Damping:</span>
-            <span class="text-neutral-900 font-bold">9.2 dB (Suppression)</span>
-          </div>
-          <div class="flex justify-between text-neutral-600">
-            <span>Polarization Channels:</span>
-            <span class="text-blue-600 font-bold">VV + VH Dual-Pol</span>
-          </div>
-          <div class="flex justify-between text-neutral-600">
-            <span>Spatial Resolution:</span>
-            <span class="text-neutral-900 font-bold">10.0 meters / pixel</span>
-          </div>
-        </div>
-
       </div>
 
-      <!-- TAB 2 CONTENT: OCEAN DRIFT & WEATHERING PHYSICS -->
-      <div id="tabContentPhysics" class="flex-1 p-4 space-y-3.5 overflow-y-auto custom-scrollbar hidden">
+      <!-- AI Confidence Bar -->
+      <div class="bg-white/90 border border-black/8 p-3 rounded-2xl space-y-1.5 shadow-sm">
+        <div class="flex justify-between items-center text-xs">
+          <span class="text-neutral-500 font-mono text-[10px] uppercase font-bold">AI Model Confidence</span>
+          <span id="aiConfidenceText" class="font-mono text-base font-black text-neutral-900">99%</span>
+        </div>
+        <div class="w-full h-2 bg-neutral-200 rounded-full overflow-hidden">
+          <div id="aiConfidenceBar" class="h-full bg-neutral-900 rounded-full transition-all duration-500" style="width: 99%"></div>
+        </div>
+      </div>
+
+      <!-- Technical Matrix -->
+      <div class="space-y-1.5 text-[11px] font-mono pt-1 text-neutral-700 border-t border-black/8">
+        <div class="flex justify-between">
+          <span class="text-neutral-500">Sensor / Orbit:</span>
+          <span id="sarSensor" class="font-bold text-neutral-900">Sentinel-1B (C-Band)</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-neutral-500">Acquisition UTC:</span>
+          <span id="sarTime" class="font-bold text-neutral-900">04:15:00Z (7 Sep 2026)</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-neutral-500">Spatial Resolution:</span>
+          <span class="font-bold text-neutral-900">10.0 m / pixel</span>
+        </div>
+      </div>
+
+      <!-- Sidebar Tabs Switcher -->
+      <div class="flex items-center border-b border-black/10 text-xs font-bold gap-4 pt-1">
+        <button id="tabBtnOverview" class="text-neutral-900 border-b-2 border-neutral-900 pb-1.5 transition-all">Overview</button>
+        <button id="tabBtnVessel" class="text-neutral-400 hover:text-neutral-800 pb-1.5 transition-all">Vessels</button>
+        <button id="tabBtnPhysics" class="text-neutral-400 hover:text-neutral-800 pb-1.5 transition-all">Physics</button>
+      </div>
+
+      <!-- TAB 1: OVERVIEW & ACTION BUTTON -->
+      <div id="tabContentOverview" class="space-y-3">
+        <button id="btnDossier" class="w-full flex items-center justify-between p-3 bg-white hover:bg-neutral-50 border border-black/12 rounded-2xl text-xs font-bold text-neutral-900 shadow-sm transition-all hover:shadow active:scale-98">
+          <div class="flex items-center space-x-2">
+            <i data-lucide="file-text" class="w-4 h-4 text-rose-600"></i>
+            <span>Generate Forensic Dossier</span>
+          </div>
+          <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-neutral-600"></i>
+        </button>
+      </div>
+
+      <!-- TAB 2: CULPRIT VESSEL LEADERBOARD -->
+      <div id="tabContentVessel" class="space-y-2 hidden">
+        <div class="flex items-center justify-between text-[11px] font-mono">
+          <span class="font-bold text-neutral-800">AIS Attribution</span>
+          <span id="vesselCountBadge" class="px-2 py-0.5 bg-neutral-100 rounded text-neutral-600 font-bold">3 Vessels</span>
+        </div>
+        <div id="culpritList" class="space-y-2 max-h-48 overflow-y-auto custom-scrollbar"></div>
+      </div>
+
+      <!-- TAB 3: INTERACTIVE PHYSICS & WEATHERING CHARTS -->
+      <div id="tabContentPhysics" class="space-y-3 hidden">
         
-        <!-- Dynamic Vectors Grid -->
-        <div class="grid grid-cols-2 gap-2 text-xs">
-          <div class="glass-card-subtle p-2.5 rounded-xl">
-            <span class="text-[10px] font-mono text-neutral-500 uppercase block">Surface Wind (ERA5)</span>
-            <span id="windData" class="font-mono text-amber-700 font-bold text-xs">6.2 m/s @ 225°</span>
+        <!-- Interactive 72h Weathering Curves (SVG Sparkline Gauges) -->
+        <div class="bg-white/90 border border-black/8 p-3 rounded-2xl space-y-2.5 shadow-sm">
+          <div class="text-[10px] font-mono uppercase font-bold text-neutral-500 flex items-center justify-between border-b border-black/6 pb-1">
+            <span>Petroleum Weathering Curves (72h)</span>
+            <i data-lucide="activity" class="w-3 h-3 text-amber-500"></i>
           </div>
-          <div class="glass-card-subtle p-2.5 rounded-xl">
-            <span class="text-[10px] font-mono text-neutral-500 uppercase block">Surface Current (CMEMS)</span>
-            <span id="currentData" class="font-mono text-blue-600 font-bold text-xs">0.45 m/s @ 45°</span>
+
+          <!-- Gauge 1: Evaporation -->
+          <div class="space-y-1">
+            <div class="flex justify-between text-[10px] font-mono">
+              <span class="text-neutral-600">Evaporation Lost:</span>
+              <span class="font-bold text-amber-600">35.4%</span>
+            </div>
+            <svg class="w-full h-4" viewBox="0 0 100 20">
+              <path d="M0,18 Q25,12 50,7 T100,3" fill="none" stroke="#D97706" stroke-width="2.5" />
+            </svg>
           </div>
-          <div class="glass-card-subtle p-2.5 rounded-xl">
-            <span class="text-[10px] font-mono text-neutral-500 uppercase block">Drift Backtrack Time</span>
-            <span id="elapsedDrift" class="font-mono text-purple-600 font-bold text-sm">3.5 hrs</span>
+
+          <!-- Gauge 2: Mousse Emulsification -->
+          <div class="space-y-1">
+            <div class="flex justify-between text-[10px] font-mono">
+              <span class="text-neutral-600">Water Emulsification:</span>
+              <span class="font-bold text-blue-600">77.5%</span>
+            </div>
+            <svg class="w-full h-4" viewBox="0 0 100 20">
+              <path d="M0,19 Q30,15 60,6 T100,2" fill="none" stroke="#2563EB" stroke-width="2.5" />
+            </svg>
           </div>
-          <div class="glass-card-subtle p-2.5 rounded-xl">
-            <span class="text-[10px] font-mono text-neutral-500 uppercase block">Leeway Factor (α)</span>
-            <span class="font-mono text-neutral-800 font-bold text-xs">3.2% + Coriolis</span>
+
+          <!-- Gauge 3: Viscosity Swelling -->
+          <div class="space-y-1">
+            <div class="flex justify-between text-[10px] font-mono">
+              <span class="text-neutral-600">Dynamic Viscosity:</span>
+              <span class="font-bold text-rose-600">12,400 cP</span>
+            </div>
+            <svg class="w-full h-4" viewBox="0 0 100 20">
+              <path d="M0,18 L30,16 L60,10 L100,2" fill="none" stroke="#DC2626" stroke-width="2.5" />
+            </svg>
           </div>
         </div>
 
-        <!-- Backtracked Discharge Origin Cone -->
-        <div class="p-3 bg-purple-50 border border-purple-200 rounded-xl text-[11px] font-mono text-purple-900 space-y-1">
-          <div class="flex items-center space-x-1.5 text-purple-700 font-bold text-xs">
-            <i data-lucide="target" class="w-3.5 h-3.5"></i>
-            <span>Discharge Origin Coordinate</span>
-          </div>
-          <div id="originCoords" class="text-sm font-bold text-neutral-900">18.820°N, 72.350°E</div>
-          <div class="text-[9px] text-purple-600">Computed via Reverse Lagrangian Particle Dispersion</div>
-        </div>
-
-        <!-- Weathering Gauge Card -->
-        <div class="glass-card p-3 rounded-xl space-y-2 text-xs font-mono">
-          <div class="flex justify-between items-center text-neutral-700">
-            <span>Evaporation (24h):</span>
-            <span class="font-bold text-amber-600">35.4% Lost</span>
-          </div>
-          <div class="flex justify-between items-center text-neutral-700">
-            <span>Mousse Emulsification:</span>
-            <span class="font-bold text-blue-600">77.5% Water</span>
-          </div>
-          <div class="flex justify-between items-center text-neutral-700">
-            <span>Viscosity Swelling:</span>
-            <span class="font-bold text-rose-600">12,400 cP (Tar)</span>
-          </div>
-        </div>
-
+        <button id="btnForwardDrift" class="w-full py-2 bg-neutral-900 text-white rounded-xl text-xs font-bold shadow hover:bg-neutral-800 transition-all flex items-center justify-center space-x-2">
+          <i data-lucide="compass" class="w-3.5 h-3.5 text-purple-400"></i>
+          <span>Simulate 72h Shoreline Drift</span>
+        </button>
+        <button id="btnGeoTIFF" class="w-full py-2 bg-blue-600 text-white rounded-xl text-xs font-bold shadow hover:bg-blue-500 transition-all flex items-center justify-center space-x-2">
+          <i data-lucide="scan" class="w-3.5 h-3.5"></i>
+          <span>Run GeoTIFF + CFAR Pipeline</span>
+        </button>
       </div>
 
-      <!-- TAB 3 CONTENT: ECOLOGICAL THREAT & LANDFALL ETA -->
-      <div id="tabContentThreat" class="flex-1 p-4 space-y-3.5 overflow-y-auto custom-scrollbar hidden">
-        
-        <!-- Threat Level Banner -->
-        <div class="p-3 bg-rose-50 border border-rose-200 rounded-xl space-y-1">
-          <div class="flex items-center justify-between">
-            <span class="text-[10px] font-mono uppercase text-rose-700 font-bold">Threat Assessment</span>
-            <span class="px-2 py-0.5 text-[9px] font-bold bg-rose-600 text-white rounded">CRITICAL</span>
-          </div>
-          <div class="text-xs font-bold text-neutral-900">Shoreline Impact within 24h</div>
-          <div class="text-[10px] text-neutral-600 font-mono">Target: Manori & Gorai Coastal Sanctuary</div>
-        </div>
-
-        <!-- Action Items Card -->
-        <div class="glass-card p-3 rounded-xl space-y-2 text-[11px] font-mono">
-          <div class="text-emerald-700 font-bold text-xs flex items-center space-x-1.5">
-            <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i>
-            <span>Containment Action Plan</span>
-          </div>
-          <div class="space-y-1 text-neutral-700">
-            <div>• Deploy <b class="text-neutral-900">1,200m</b> inflatable offshore booms.</div>
-            <div>• Chemical dispersants <b class="text-rose-600">PROHIBITED</b> in 10km coastal zone.</div>
-            <div>• Dispatch <b class="text-neutral-900">2 skimmer vessels</b> to intercept corridor.</div>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- Bottom System Digest Footer -->
-      <div class="p-3 bg-neutral-50 border-t border-black/8 text-[10px] text-neutral-500 font-mono flex items-center justify-between">
-        <span class="flex items-center space-x-1 text-emerald-600 font-semibold">
-          <i data-lucide="lock" class="w-3 h-3"></i>
-          <span>AUTHENTICATED FEED</span>
-        </span>
-        <span class="text-neutral-400">NTRO SIH-143</span>
-      </div>
     </aside>
 
-    <!-- CENTER & RIGHT: MAP CANVAS & AIS CULPRIT LEADERBOARD -->
-    <div class="flex-1 flex flex-col overflow-hidden relative">
+    <!-- FLOATING TOP TACTICAL CONTROL CHIPS & SEARCH BAR -->
+    <div class="absolute top-4 right-4 z-30 flex flex-wrap items-center justify-end gap-2 pointer-events-auto">
       
-      <!-- Interactive Geospatial Map -->
-      <div id="map" class="flex-1 w-full h-full relative z-0"></div>
-
-      <!-- MAP FLOATING QUICK FILTERS (Top Left Floating Pill) -->
-      <div class="absolute top-4 left-4 z-10 flex items-center space-x-1.5 glass-card p-1.5 rounded-2xl shadow-md text-xs font-mono">
-        <select id="mapStyleSelect" class="bg-neutral-100 text-neutral-800 font-bold px-2.5 py-1 rounded-xl border border-black/10 focus:outline-none cursor-pointer">
-          <option value="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json" selected>☀️ Clean Light Positron</option>
-          <option value="https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json">🌈 Colorful Voyager</option>
-          <option value="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json">🕶️ Tactical Dark</option>
-        </select>
-        <button id="toggleSlick" class="px-2.5 py-1 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 font-semibold hover:bg-blue-100 transition-all flex items-center space-x-1">
-          <span class="w-2 h-2 rounded-full bg-blue-600"></span>
+      <!-- Interactive Tactical Filter Chips -->
+      <div class="glass-pill-sleek px-2 py-1 rounded-2xl flex items-center space-x-1.5 text-xs font-mono">
+        <button id="toggle3DPitch" class="px-2.5 py-1 rounded-xl bg-neutral-900 text-white font-bold hover:bg-neutral-800 transition-all flex items-center space-x-1 shadow-sm">
+          <i data-lucide="box" class="w-3 h-3 text-purple-300"></i>
+          <span>3D Pitch</span>
+        </button>
+        <button id="toggleSlick" class="px-2.5 py-1 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 font-semibold hover:bg-rose-100 transition-all flex items-center space-x-1">
+          <span class="w-2 h-2 rounded-full bg-rose-600 shadow-sm"></span>
           <span>Slick</span>
         </button>
         <button id="toggleOrigin" class="px-2.5 py-1 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 font-semibold hover:bg-amber-100 transition-all flex items-center space-x-1">
-          <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-          <span>Origin Cone</span>
+          <span class="w-2 h-2 rounded-full bg-amber-500 shadow-sm"></span>
+          <span>Origin</span>
         </button>
-        <button id="toggleDark" class="px-2.5 py-1 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 font-semibold hover:bg-rose-100 transition-all flex items-center space-x-1">
-          <span class="w-2 h-2 rounded-full bg-rose-600 animate-ping"></span>
+        <button id="toggleDark" class="px-2.5 py-1 rounded-xl bg-red-50 text-red-700 border border-red-200 font-semibold hover:bg-red-100 transition-all flex items-center space-x-1">
+          <span class="w-2 h-2 rounded-full bg-red-600 animate-ping"></span>
           <span>Dark Vessel</span>
         </button>
         <button id="toggleBuffers" class="px-2.5 py-1 rounded-xl bg-purple-50 text-purple-700 border border-purple-200 font-semibold hover:bg-purple-100 transition-all flex items-center space-x-1">
           <span class="w-2 h-2 rounded-full bg-purple-600"></span>
-          <span>Buffer Rings</span>
+          <span>Buffer</span>
         </button>
         <button id="toggleVectors" class="px-2.5 py-1 rounded-xl bg-teal-50 text-teal-700 border border-teal-200 font-semibold hover:bg-teal-100 transition-all flex items-center space-x-1">
           <span class="w-2 h-2 rounded-full bg-teal-500 animate-pulse"></span>
-          <span>Drift Flow</span>
+          <span>Drift</span>
         </button>
         <button id="toggleMeasure" class="px-2.5 py-1 rounded-xl bg-neutral-100 text-neutral-700 border border-black/10 font-semibold hover:bg-neutral-200 transition-all flex items-center space-x-1">
           <i data-lucide="ruler" class="w-3 h-3"></i>
-          <span>Measure Tape</span>
+          <span>Tape</span>
         </button>
       </div>
 
-      <!-- FLOATING MAP LEGEND CARD (Bottom Left Overlay) -->
-      <div class="absolute bottom-24 left-4 z-10 glass-card p-3 rounded-2xl text-xs font-mono space-y-2 max-w-xs shadow-md pointer-events-auto">
-        <div class="text-[10px] uppercase font-bold tracking-wider text-neutral-500 flex items-center justify-between border-b border-black/8 pb-1">
-          <span class="flex items-center space-x-1">
-            <i data-lucide="map-pin" class="w-3 h-3 text-blue-600"></i>
-            <span>Tactical Maritime Legend</span>
-          </span>
-          <span class="text-neutral-400">NTRO-143</span>
-        </div>
-        <div class="grid grid-cols-1 gap-1.5 text-[11px]">
-          <div class="flex items-center space-x-2">
-            <span class="w-3.5 h-3.5 rounded-full bg-blue-500/60 border-2 border-blue-600 shadow-sm"></span>
-            <span class="text-neutral-800">Oil Slick Area (<b class="text-blue-600">Conf. 99%</b>)</span>
-          </div>
-          <div class="flex items-center space-x-2">
-            <span class="w-3.5 h-3.5 rounded-full bg-amber-500/60 border-2 border-amber-600"></span>
-            <span class="text-neutral-800">Origin Cone (<b class="text-amber-700">-3.5h Backtrack</b>)</span>
-          </div>
-          <div class="flex items-center space-x-2">
-            <span class="w-4 h-1.5 bg-rose-600 rounded"></span>
-            <span class="text-neutral-800">Primary Suspect Track (<b class="text-rose-600">97.1% Match</b>)</span>
-          </div>
-          <div class="flex items-center space-x-2">
-            <span class="w-2.5 h-2.5 rounded-full bg-rose-600 animate-ping"></span>
-            <span class="text-neutral-800">Dark Vessel (<b class="text-rose-600">AIS Offline</b>)</span>
-          </div>
-          <div class="flex items-center space-x-2">
-            <span class="w-4 h-1 bg-purple-500 border-dashed rounded"></span>
-            <span class="text-neutral-800">Buffer Rings (<b class="text-purple-600">1km / 3km / 5km</b>)</span>
-          </div>
-          <div class="flex items-center space-x-2">
-            <span class="w-4 h-1 bg-teal-500 border-dashed rounded"></span>
-            <span class="text-neutral-800">Ocean Flow Vectors (<b class="text-teal-700">CMEMS + Wind</b>)</span>
-          </div>
-        </div>
+      <!-- Live Search Input with Auto-Center -->
+      <div class="glass-pill-sleek px-3.5 py-1.5 rounded-2xl flex items-center space-x-2 w-56 md:w-64 shadow-sm">
+        <i data-lucide="search" class="w-3.5 h-3.5 text-neutral-500 shrink-0"></i>
+        <input 
+          type="text" 
+          id="searchInput"
+          placeholder="Search MMSI, vessel..." 
+          class="bg-transparent text-xs text-neutral-900 placeholder-neutral-400 font-medium focus:outline-none w-full"
+        />
       </div>
 
-      <!-- FLOATING AIS CULPRIT LEADERBOARD (Top Right Overlay) -->
-      <div class="absolute top-4 right-4 w-84 lg:w-96 glass-card rounded-2xl shadow-xl z-10 overflow-hidden flex flex-col max-h-[82vh]">
-        <div class="p-3.5 bg-white border-b border-black/8 flex items-center justify-between">
-          <div class="flex items-center space-x-2">
-            <i data-lucide="crosshair" class="w-4 h-4 text-rose-600"></i>
-            <span class="text-xs font-mono font-bold tracking-wider uppercase text-neutral-900">AIS Culprit Attribution</span>
-          </div>
-          <span id="vesselCountBadge" class="px-2 py-0.5 text-[10px] font-mono bg-neutral-100 text-neutral-700 rounded-md font-semibold border border-black/6">3 Vessels</span>
-        </div>
+      <!-- Coordinates Badge -->
+      <div class="glass-pill-sleek px-3 py-1.5 rounded-2xl flex items-center space-x-1.5 text-xs font-mono text-neutral-800 font-bold shadow-sm">
+        <span id="coordBadgeText">1.3521° N, 103.8198° E</span>
+        <button id="btnCenterTarget" class="p-0.5 hover:text-blue-600 transition-colors" title="Center Target">
+          <i data-lucide="crosshair" class="w-3.5 h-3.5 text-neutral-600"></i>
+        </button>
+      </div>
+    </div>
 
-        <div id="culpritList" class="p-3 space-y-2.5 overflow-y-auto custom-scrollbar flex-1">
-          <!-- Dynamically Injected Culprit Cards -->
-        </div>
+    <!-- FLOATING BOTTOM LEFT LIVE BADGE -->
+    <div class="absolute bottom-4 left-4 z-20 glass-pill-sleek px-3.5 py-2 rounded-2xl shadow-md flex items-center space-x-2 text-xs font-sans pointer-events-auto">
+      <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+      <span class="font-bold text-neutral-900">Live AIS Feed:</span>
+      <span class="text-neutral-600 font-semibold">342 vessels</span>
+    </div>
+
+    <!-- MISSION REPLAY SCRUBBER TIMELINE -->
+    <div class="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 glass-pill-sleek rounded-full px-6 py-2.5 shadow-2xl flex items-center space-x-5 pointer-events-auto w-[520px] max-w-[90vw]">
+      
+      <!-- Play/Pause Button -->
+      <button id="btnPlayDrift" class="w-8.5 h-8.5 rounded-full bg-neutral-900 hover:bg-neutral-800 text-white flex items-center justify-center shrink-0 shadow transition-transform active:scale-95">
+        <i data-lucide="play" id="playIcon" class="w-3.5 h-3.5 fill-white ml-0.5"></i>
+      </button>
+
+      <!-- Label block -->
+      <div class="flex flex-col shrink-0">
+        <span class="text-[9px] font-mono text-neutral-400 font-bold uppercase tracking-wider">Mission Replay Scrubber</span>
+        <span id="currentTimeLabel" class="text-xs font-mono font-black text-neutral-900">06:00 UTC (Detection Pass)</span>
       </div>
 
-      <!-- BOTTOM CINEMATIC TIMELINE & REPLAY SCRUBBER -->
-      <div class="h-20 bg-white/92 backdrop-blur-xl border-t border-black/8 px-6 flex items-center justify-between shrink-0 z-20 shadow-md">
-        <div class="flex items-center space-x-3.5">
-          <button id="btnPlayDrift" class="w-10 h-10 rounded-xl bg-blue-600 hover:bg-blue-500 text-white flex items-center justify-center shadow-md shadow-blue-500/20 transition-all hover:scale-105 active:scale-95">
-            <i data-lucide="play" id="playIcon" class="w-4 h-4 fill-white"></i>
-          </button>
-          <div>
-            <div class="text-[9px] font-mono uppercase tracking-wider text-neutral-500 font-bold">Incident Replay Timeline</div>
-            <div id="currentTimeLabel" class="text-xs font-mono font-extrabold text-blue-600">06:00 UTC (Detection Pass)</div>
-          </div>
-        </div>
-
-        <div class="flex-1 mx-8 flex items-center space-x-4">
-          <span class="text-[11px] font-mono text-neutral-400 font-bold" id="timeStartLabel">01:30 UTC</span>
-          <input type="range" id="timeSlider" min="0" max="100" value="100" class="w-full accent-blue-600 bg-neutral-200 h-2 rounded-lg cursor-pointer">
-          <span class="text-[11px] font-mono text-neutral-800 font-bold" id="timeEndLabel">06:00 UTC</span>
-        </div>
-
-        <div class="hidden lg:flex items-center space-x-4 text-xs font-mono">
-          <div class="flex items-center space-x-1.5">
-            <span class="w-3 h-1 bg-blue-600 rounded-sm"></span>
-            <span class="text-neutral-600 text-[11px]">Slick</span>
-          </div>
-          <div class="flex items-center space-x-1.5">
-            <span class="w-3 h-1 bg-amber-500 rounded-sm border-dashed"></span>
-            <span class="text-neutral-600 text-[11px]">Origin Cone</span>
-          </div>
-          <div class="flex items-center space-x-1.5">
-            <span class="w-3 h-1 bg-rose-600 rounded-sm"></span>
-            <span class="text-neutral-600 text-[11px]">Suspect Track</span>
-          </div>
-          <div class="flex items-center space-x-1.5">
-            <span class="w-3 h-1 bg-purple-600 rounded-sm border-dashed"></span>
-            <span class="text-neutral-600 text-[11px]">72h Landfall</span>
-          </div>
+      <!-- Step Markers Timeline Track -->
+      <div class="flex-1 flex flex-col justify-center space-y-1">
+        <input 
+          type="range" 
+          id="timeSlider" 
+          min="0" 
+          max="100" 
+          value="100" 
+          class="w-full accent-neutral-900 bg-neutral-200 h-1.5 rounded-lg cursor-pointer"
+        />
+        <div class="flex justify-between text-[9px] font-mono text-neutral-400 font-bold px-0.5">
+          <span>01:30</span>
+          <span>03:00</span>
+          <span>04:15</span>
+          <span>06:00 UTC</span>
         </div>
       </div>
     </div>
+
+    <!-- FLOATING BOTTOM RIGHT MAP STYLE & SCALE CONTROLS -->
+    <div class="absolute bottom-4 right-4 z-20 flex items-end space-x-2.5 pointer-events-auto">
+      
+      <!-- Style Switcher Pill -->
+      <div class="glass-pill-sleek rounded-2xl p-1 shadow-md flex items-center space-x-1 text-xs font-bold">
+        <button id="btnStyleMap" class="px-3 py-1 rounded-xl bg-neutral-900 text-white shadow-sm transition-all">Map</button>
+        <button id="btnStyleSatellite" class="px-3 py-1 rounded-xl text-neutral-600 hover:text-neutral-900 transition-all">Satellite</button>
+        <button id="btnStyleDark" class="px-3 py-1 rounded-xl text-neutral-600 hover:text-neutral-900 transition-all">Dark</button>
+      </div>
+
+      <!-- Zoom Buttons Stack -->
+      <div class="glass-pill-sleek rounded-2xl shadow-md flex flex-col overflow-hidden text-sm font-bold text-neutral-800">
+        <button id="btnZoomIn" class="w-8 h-7.5 flex items-center justify-center hover:bg-black/5 border-b border-black/8 transition-colors">+</button>
+        <button id="btnZoomOut" class="w-8 h-7.5 flex items-center justify-center hover:bg-black/5 transition-colors">-</button>
+      </div>
+
+      <!-- Scale Line -->
+      <div class="text-[10px] font-mono text-neutral-700 font-bold border-b-2 border-neutral-800 px-1.5 py-0.5 text-center">
+        10 km
+      </div>
+    </div>
+
+    <!-- SLIDE-OVER RIGHT VESSEL DETAILS DRAWER -->
+    <div id="vesselDrawer" class="absolute top-16 right-4 z-40 w-80 glass-pill-sleek rounded-3xl p-4 shadow-2xl space-y-3 transition-transform translate-x-[400px] duration-300 hidden">
+      <div class="flex items-center justify-between border-b border-black/8 pb-2">
+        <div class="flex items-center space-x-2">
+          <div class="w-3 h-3 rounded-full bg-rose-600 animate-pulse"></div>
+          <span class="font-extrabold text-xs text-neutral-900 uppercase tracking-wide">Vessel Intelligence</span>
+        </div>
+        <button id="btnCloseVesselDrawer" class="p-1 hover:bg-black/5 rounded-lg text-neutral-500">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="space-y-2 text-xs font-mono">
+        <div>
+          <div id="drawerVesselName" class="text-sm font-extrabold text-neutral-900">MT Ocean Titan</div>
+          <div id="drawerVesselType" class="text-[11px] text-neutral-500">Crude Oil Tanker (Panama)</div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 text-[10px] bg-neutral-50 p-2 rounded-xl border border-black/5">
+          <div><span class="text-neutral-400 block">MMSI</span><b id="drawerMMSI" class="text-neutral-800">419001234</b></div>
+          <div><span class="text-neutral-400 block">IMO</span><b id="drawerIMO" class="text-neutral-800">9487123</b></div>
+          <div><span class="text-neutral-400 block">LENGTH / BEAM</span><b id="drawerDimensions" class="text-neutral-800">245m x 42m</b></div>
+          <div><span class="text-neutral-400 block">GROSS TONNAGE</span><b id="drawerTonnage" class="text-neutral-800">62,500 GT</b></div>
+        </div>
+
+        <div class="space-y-1 border-t border-black/6 pt-2 text-[11px]">
+          <div class="flex justify-between">
+            <span class="text-neutral-500">CPA Distance:</span>
+            <span id="drawerCPA" class="font-bold text-rose-600">0.12 km</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-neutral-500">Speed Anomaly:</span>
+            <span id="drawerSpeedAnomaly" class="font-bold text-amber-600">94%</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-neutral-500">Attribution Match:</span>
+            <span id="drawerAttribution" class="font-bold text-rose-600">97.1%</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-neutral-500">AIS Health:</span>
+            <span id="drawerAISHealth" class="font-bold text-emerald-600">NORMAL</span>
+          </div>
+        </div>
+
+        <button id="btnCenterOnVessel" class="w-full py-2 bg-neutral-900 text-white rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5 shadow hover:bg-neutral-800 transition-all">
+          <i data-lucide="crosshair" class="w-3.5 h-3.5"></i>
+          <span>Fly Camera to Vessel</span>
+        </button>
+      </div>
+    </div>
+
   </main>
 
   <!-- FORENSIC EVIDENCE DOSSIER MODAL -->
   <div id="dossierModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white border border-black/10 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
-      <!-- Modal Header -->
+    <div class="bg-white border border-black/10 rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden font-sans">
       <div class="p-4 bg-neutral-50 border-b border-black/8 flex items-center justify-between">
-        <div class="flex items-center space-x-2.5">
-          <div class="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-200">
+        <div class="flex items-center space-x-3">
+          <div class="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-200">
             <i data-lucide="shield-alert" class="w-4 h-4 text-rose-600"></i>
           </div>
           <div>
-            <h3 class="text-sm font-bold text-neutral-900 tracking-wide">FORENSIC INCIDENT EVIDENCE DOSSIER</h3>
-            <p class="text-[10px] font-mono text-neutral-500">MARPOL 73/78 Annex I Violation Attribution Report</p>
+            <h3 class="text-sm font-extrabold text-neutral-900 tracking-wide">FORENSIC INCIDENT EVIDENCE DOSSIER</h3>
+            <p class="text-[10px] font-mono text-neutral-500">MARPOL Annex I Violation Attribution Report</p>
           </div>
         </div>
         <div class="flex items-center space-x-2">
-          <button onclick="window.print()" class="px-3 py-1.5 bg-white hover:bg-neutral-100 text-neutral-800 text-xs font-mono rounded-xl flex items-center space-x-1.5 border border-black/10 shadow-sm transition-all">
+          <button id="btnDownloadPDF" onclick="window.print()" class="px-3 py-1.5 bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-mono font-bold rounded-xl flex items-center space-x-1.5 shadow-sm">
             <i data-lucide="printer" class="w-3.5 h-3.5"></i>
             <span>Print / PDF</span>
           </button>
-          <button id="btnCloseDossier" class="w-8 h-8 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-600 hover:text-neutral-900 flex items-center justify-center transition-all">
+          <button id="btnCloseDossier" class="w-8 h-8 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-600 flex items-center justify-center">
             <i data-lucide="x" class="w-4 h-4"></i>
           </button>
         </div>
       </div>
-      <!-- Modal Content -->
       <div class="p-6 overflow-y-auto custom-scrollbar font-mono text-xs leading-relaxed text-neutral-800 bg-white">
         <pre id="dossierMarkdownContent" class="whitespace-pre-wrap font-mono text-neutral-800"></pre>
       </div>
     </div>
   </div>
 
-  <!-- 72H FORWARD DRIFT & WEATHERING MODAL -->
-  <div id="landfallModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white border border-purple-200 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
-      <!-- Modal Header -->
-      <div class="p-4 bg-purple-50/70 border-b border-purple-100 flex items-center justify-between">
-        <div class="flex items-center space-x-2.5">
-          <div class="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center border border-purple-200">
-            <i data-lucide="compass" class="w-4 h-4 text-purple-700 animate-pulse"></i>
-          </div>
-          <div>
-            <h3 class="text-sm font-bold text-neutral-900 tracking-wide">72-HOUR FORWARD DRIFT & COASTAL LANDFALL INTELLIGENCE</h3>
-            <p class="text-[10px] font-mono text-purple-700">Lagrangian Shoreline Impact Prediction & Petroleum Weathering Physics</p>
-          </div>
-        </div>
-        <button id="btnCloseLandfall" class="w-8 h-8 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-800 flex items-center justify-center transition-all">
-          <i data-lucide="x" class="w-4 h-4"></i>
-        </button>
-      </div>
-      <!-- Modal Content -->
-      <div class="p-6 overflow-y-auto custom-scrollbar space-y-5 text-xs font-mono bg-white">
-        
-        <!-- Impact Threat Alert Banner -->
-        <div id="landfallThreatBanner" class="p-4 rounded-xl border flex items-center justify-between bg-rose-50 border-rose-200 text-rose-900 shadow-sm">
-          <div class="flex items-center space-x-3.5">
-            <i data-lucide="alert-triangle" class="w-7 h-7 text-rose-600 shrink-0 animate-bounce"></i>
-            <div>
-              <div class="text-[10px] uppercase font-bold tracking-wider text-rose-700">CRITICAL SHORELINE THREAT DETECTED</div>
-              <div id="landfallTargetText" class="text-sm font-extrabold text-neutral-900 mt-0.5">Target: Manori & Gorai Sanctuary</div>
-            </div>
-          </div>
-          <div class="text-right">
-            <span class="text-[10px] text-neutral-500 block uppercase">Projected ETA</span>
-            <span id="landfallEtaText" class="text-xl font-extrabold text-rose-600">24.0 Hours</span>
-          </div>
-        </div>
-
-        <!-- Petroleum Weathering Matrix -->
-        <div>
-          <h4 class="text-xs uppercase font-bold text-neutral-800 mb-2.5 flex items-center space-x-1.5">
-            <i data-lucide="flame" class="w-4 h-4 text-amber-500"></i>
-            <span>Physico-Chemical Weathering Degradation (Mackay Model)</span>
-          </h4>
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-2.5">
-            <div class="glass-card-subtle p-3 rounded-xl">
-              <span class="text-[10px] text-neutral-500 uppercase block">Evaporated Fraction</span>
-              <span id="wEvapPct" class="text-sm font-bold text-amber-600">35.4%</span>
-              <span class="text-[9px] text-neutral-400 block mt-0.5">Light volatiles lost</span>
-            </div>
-            <div class="glass-card-subtle p-3 rounded-xl">
-              <span class="text-[10px] text-neutral-500 uppercase block">Emulsion Water Uptake</span>
-              <span id="wEmulsionPct" class="text-sm font-bold text-blue-600">77.5%</span>
-              <span class="text-[9px] text-neutral-400 block mt-0.5">"Chocolate Mousse"</span>
-            </div>
-            <div class="glass-card-subtle p-3 rounded-xl">
-              <span class="text-[10px] text-neutral-500 uppercase block">Emulsified Volume</span>
-              <span id="wEmulsifiedVol" class="text-sm font-bold text-purple-600">23.4 m³</span>
-              <span class="text-[9px] text-neutral-400 block mt-0.5">+61% swelling</span>
-            </div>
-            <div class="glass-card-subtle p-3 rounded-xl">
-              <span class="text-[10px] text-neutral-500 uppercase block">Dynamic Viscosity</span>
-              <span id="wViscosity" class="text-sm font-bold text-rose-600">12,400 cP</span>
-              <span class="text-[9px] text-neutral-400 block mt-0.5">Heavy Sticky Tar</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Containment & Response Recommendations -->
-        <div class="glass-card p-4 rounded-xl border-emerald-200 space-y-2">
-          <h4 class="text-xs uppercase font-bold text-emerald-700 flex items-center space-x-1.5">
-            <i data-lucide="shield-check" class="w-4 h-4"></i>
-            <span>Emergency Containment & Defense Deployment Plan</span>
-          </h4>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px] text-neutral-700 pt-1">
-            <div class="p-2.5 bg-neutral-50 rounded-xl border border-black/6">
-              <span class="text-neutral-500 block text-[10px] uppercase">Recommended Booms</span>
-              <span id="cBooms" class="font-bold text-neutral-900 text-xs">1,200 meters of Offshore Inflatable Booms</span>
-            </div>
-            <div class="p-2.5 bg-neutral-50 rounded-xl border border-black/6">
-              <span class="text-neutral-500 block text-[10px] uppercase">Chemical Dispersants Status</span>
-              <span id="cDispersants" class="font-bold text-amber-700 text-xs">PROHIBITED (Near Marine Sanctuary)</span>
-            </div>
-          </div>
-        </div>
-
-      </div>
-    </div>
-  </div>
-
-  <!-- APPLICATION LOGIC & MAPBOX/MAPLIBRE GL JS ENGINE -->
+  <!-- APPLICATION LOGIC & MAPBOX ENGINE -->
   <script>
     lucide.createIcons();
 
-    // UTC Clock
+    // Live UTC Clock
     setInterval(() => {
       const now = new Date();
-      document.getElementById('liveClockUtc').textContent = now.toUTCString().split(' ')[4] + ' UTC';
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const d = now.getUTCDate();
+      const m = monthNames[now.getUTCMonth()];
+      const y = now.getUTCFullYear();
+      const timeStr = now.toUTCString().split(' ')[4];
+      document.getElementById('liveClockUtc').textContent = `${d} ${m} ${y} ${timeStr} UTC`;
     }, 1000);
 
-    // Mapbox GL / MapLibre GL JS engine alias
+    // MapLibre GL engine setup
     window.mapboxgl = window.maplibregl;
 
-    // Map initialization with 3D pitch & bearing & Clean Light Positron style
+    const MAP_STYLES = {
+      normal: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+      satellite: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
+      dark: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
+    };
+
+    // 3D Pitch & Bearing Map initialization
+    let is3DTilt = true;
     const map = new maplibregl.Map({
       container: 'map',
-      style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
-      center: [72.40, 18.85],
-      zoom: 10.5,
+      style: MAP_STYLES.normal,
+      center: [103.85, 1.24],
+      zoom: 11.5,
       pitch: 45,
       bearing: -15
     });
 
-    map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'bottom-right');
-
-    // Dynamic Map Style Switcher Listener
-    document.getElementById('mapStyleSelect').addEventListener('change', (e) => {
-      map.setStyle(e.target.value);
-    });
-
     let currentScenarioData = null;
     let activeMarkers = [];
+    let activeVesselList = [];
     let isPlaying = false;
     let playInterval = null;
+    let isMeasureActive = false;
+    let measureMarker = null;
+    let selectedVesselCoord = null;
+
+    // Ocean Color Palette Overrides, Darkened Roads, Land Contrast & Atmospheric Fog
+    function applyOceanStyling() {
+      if (map.setFog) {
+        map.setFog({
+          color: "#E2E8F0",
+          "high-color": "#FFFFFF",
+          "horizon-blend": 0.08
+        });
+      }
+      try {
+        if (map.getLayer('water')) {
+          map.setPaintProperty('water', 'fill-color', '#C3D5E0');
+        }
+        if (map.getLayer('waterway')) {
+          map.setPaintProperty('waterway', 'line-color', '#94A3B8');
+          map.setPaintProperty('waterway', 'line-width', 1.5);
+        }
+        if (map.getLayer('background')) {
+          map.setPaintProperty('background', 'background-color', '#E2E8F0');
+        }
+        if (map.getLayer('road-primary')) map.setPaintProperty('road-primary', 'line-color', '#64748B');
+        if (map.getLayer('road-secondary')) map.setPaintProperty('road-secondary', 'line-color', '#94A3B8');
+        if (map.getLayer('road-street')) map.setPaintProperty('road-street', 'line-color', '#CBD5E1');
+      } catch (e) {
+        console.log("Custom ocean style notice:", e);
+      }
+    }
+
+    map.on('load', () => {
+      applyOceanStyling();
+      setupMapLayers();
+      loadScenario('scenario_beta_singapore_strait');
+    });
+
+    map.on('style.load', () => {
+      applyOceanStyling();
+      setupMapLayers();
+      if (currentScenarioData) renderScenario(currentScenarioData);
+    });
+
+    // 3D Tilt Toggle
+    document.getElementById('toggle3DPitch').addEventListener('click', () => {
+      is3DTilt = !is3DTilt;
+      map.easeTo({
+        pitch: is3DTilt ? 45 : 0,
+        bearing: is3DTilt ? -15 : 0,
+        duration: 1000
+      });
+      document.getElementById('toggle3DPitch').className = is3DTilt 
+        ? "px-2.5 py-1 rounded-xl bg-neutral-900 text-white font-bold hover:bg-neutral-800 transition-all flex items-center space-x-1 shadow-sm"
+        : "px-2.5 py-1 rounded-xl bg-neutral-200 text-neutral-800 font-bold hover:bg-neutral-300 transition-all flex items-center space-x-1";
+    });
+
+    // Map Zoom Buttons
+    document.getElementById('btnZoomIn').addEventListener('click', () => map.zoomIn());
+    document.getElementById('btnZoomOut').addEventListener('click', () => map.zoomOut());
+
+    // Map Style Toggle Buttons
+    const btnStyleMap = document.getElementById('btnStyleMap');
+    const btnStyleSat = document.getElementById('btnStyleSatellite');
+    const btnStyleDark = document.getElementById('btnStyleDark');
+
+    function setActiveStyleBtn(activeBtn) {
+      [btnStyleMap, btnStyleSat, btnStyleDark].forEach(b => {
+        b.className = "px-3 py-1 rounded-xl text-neutral-600 hover:text-neutral-900 transition-all";
+      });
+      activeBtn.className = "px-3 py-1 rounded-xl bg-neutral-900 text-white shadow-sm transition-all";
+    }
+
+    btnStyleMap.addEventListener('click', () => {
+      setActiveStyleBtn(btnStyleMap);
+      map.setStyle(MAP_STYLES.normal);
+    });
+    btnStyleSat.addEventListener('click', () => {
+      setActiveStyleBtn(btnStyleSat);
+      map.setStyle(MAP_STYLES.satellite);
+    });
+    btnStyleDark.addEventListener('click', () => {
+      setActiveStyleBtn(btnStyleDark);
+      map.setStyle(MAP_STYLES.dark);
+    });
+
+    // Left Sidebar Tab Switcher
+    const tabBtnOverview = document.getElementById('tabBtnOverview');
+    const tabBtnVessel = document.getElementById('tabBtnVessel');
+    const tabBtnPhysics = document.getElementById('tabBtnPhysics');
+
+    const tabContentOverview = document.getElementById('tabContentOverview');
+    const tabContentVessel = document.getElementById('tabContentVessel');
+    const tabContentPhysics = document.getElementById('tabContentPhysics');
+
+    function switchTab(activeBtn, activeContent) {
+      [tabBtnOverview, tabBtnVessel, tabBtnPhysics].forEach(b => {
+        b.className = "text-neutral-400 hover:text-neutral-800 pb-1.5 transition-all";
+      });
+      [tabContentOverview, tabContentVessel, tabContentPhysics].forEach(c => c.classList.add('hidden'));
+
+      activeBtn.className = "text-neutral-900 border-b-2 border-neutral-900 pb-1.5 transition-all font-bold";
+      activeContent.classList.remove('hidden');
+    }
+
+    tabBtnOverview.addEventListener('click', () => switchTab(tabBtnOverview, tabContentOverview));
+    tabBtnVessel.addEventListener('click', () => switchTab(tabBtnVessel, tabContentVessel));
+    tabBtnPhysics.addEventListener('click', () => switchTab(tabBtnPhysics, tabContentPhysics));
 
     function clearActiveMarkers() {
       activeMarkers.forEach(m => m.remove());
       activeMarkers = [];
     }
 
-    // Helper to generate circle GeoJSON LineString for clean buffer rings
+    // GeoJSON circle helper
     function createGeoJSONCircle(center, radiusInKm, points = 64) {
       const coords = { latitude: center[1], longitude: center[0] };
       const km = radiusInKm;
@@ -699,7 +717,7 @@
       };
     }
 
-    // Function to setup map sources and layers
+    // Setup Custom Map Sources & Layers
     function setupMapLayers() {
       if (!map.getSource('slicks-src')) {
         map.addSource('slicks-src', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
@@ -708,7 +726,7 @@
           type: 'fill',
           source: 'slicks-src',
           paint: {
-            'fill-color': ['case', ['get', 'is_lookalike'], '#D97706', '#2563EB'],
+            'fill-color': ['case', ['get', 'is_lookalike'], '#D97706', '#EF4444'],
             'fill-opacity': 0.45
           }
         });
@@ -717,7 +735,7 @@
           type: 'line',
           source: 'slicks-src',
           paint: {
-            'line-color': ['case', ['get', 'is_lookalike'], '#B45309', '#1D4ED8'],
+            'line-color': ['case', ['get', 'is_lookalike'], '#B45309', '#DC2626'],
             'line-width': 3
           }
         });
@@ -729,20 +747,13 @@
           id: 'cone-layer-fill',
           type: 'fill',
           source: 'cone-src',
-          paint: {
-            'fill-color': '#F59E0B',
-            'fill-opacity': 0.25
-          }
+          paint: { 'fill-color': '#F59E0B', 'fill-opacity': 0.25 }
         });
         map.addLayer({
           id: 'cone-layer-line',
           type: 'line',
           source: 'cone-src',
-          paint: {
-            'line-color': '#D97706',
-            'line-width': 2,
-            'line-dasharray': [2, 2]
-          }
+          paint: { 'line-color': '#D97706', 'line-width': 2, 'line-dasharray': [2, 2] }
         });
       }
 
@@ -774,16 +785,16 @@
         });
       }
 
-      if (!map.getSource('forward-src')) {
-        map.addSource('forward-src', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      if (!map.getSource('particles-src')) {
+        map.addSource('particles-src', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
         map.addLayer({
-          id: 'forward-layer-line',
+          id: 'particles-layer-line',
           type: 'line',
-          source: 'forward-src',
+          source: 'particles-src',
           paint: {
-            'line-color': '#7C3AED',
-            'line-width': 3.5,
-            'line-dasharray': [4, 4]
+            'line-color': '#0D9488',
+            'line-width': 2,
+            'line-dasharray': [3, 3]
           }
         });
       }
@@ -801,124 +812,37 @@
           }
         });
       }
-
-      if (!map.getSource('particles-src')) {
-        map.addSource('particles-src', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
-        map.addLayer({
-          id: 'particles-layer-line',
-          type: 'line',
-          source: 'particles-src',
-          paint: {
-            'line-color': '#0D9488',
-            'line-width': 2,
-            'line-dasharray': [3, 3]
-          }
-        });
-      }
     }
 
-    // Ocean Drift Vector Streamline Generator
+    // Streamlines generator
     function renderOceanVectorStreamlines(centerLng, centerLat, currentDeg = 45, currentSpeed = 0.45, windDeg = 225, windSpeed = 6.2) {
       if (!map || !map.getSource('particles-src')) return;
-
       const currentRad = (currentDeg * Math.PI) / 180.0;
       const windRad = (windDeg * Math.PI) / 180.0;
-
       const vectorDx = Math.sin(currentRad) * currentSpeed + 0.03 * Math.sin(windRad) * windSpeed;
       const vectorDy = Math.cos(currentRad) * currentSpeed + 0.03 * Math.cos(windRad) * windSpeed;
-
       const scale = 0.04;
       const vectorFeatures = [];
-
       const offsets = [
         [-0.08, -0.08], [0.0, -0.08], [0.08, -0.08],
         [-0.08, 0.0],   [0.0, 0.0],   [0.08, 0.0],
         [-0.08, 0.08],  [0.0, 0.08],  [0.08, 0.08]
       ];
-
       offsets.forEach(([ox, oy]) => {
         const startLng = centerLng + ox;
         const startLat = centerLat + oy;
         const endLng = startLng + vectorDx * scale;
         const endLat = startLat + vectorDy * scale;
-
         vectorFeatures.push({
           "type": "Feature",
-          "geometry": {
-            "type": "LineString",
-            "coordinates": [[startLng, startLat], [endLng, endLat]]
-          },
+          "geometry": { "type": "LineString", "coordinates": [[startLng, startLat], [endLng, endLat]] },
           "properties": {}
         });
       });
-
-      map.getSource('particles-src').setData({
-        "type": "FeatureCollection",
-        "features": vectorFeatures
-      });
+      map.getSource('particles-src').setData({ "type": "FeatureCollection", "features": vectorFeatures });
     }
 
-    // Initialize Mapbox vector sources & layers when map loads or changes style
-    map.on('load', () => {
-      setupMapLayers();
-
-      // Interactive Click Popup for Slick Polygons
-      map.on('click', 'slicks-layer-fill', (e) => {
-        if (!e.features.length) return;
-        const props = e.features[0].properties;
-        new maplibregl.Popup({ closeButton: true, className: 'map-popup-custom' })
-          .setLngLat(e.lngLat)
-          .setHTML(`
-            <div class="font-mono text-xs p-3 space-y-1.5 glass-card rounded-2xl shadow-xl text-neutral-800">
-              <div class="flex items-center justify-between border-b border-black/8 pb-1.5">
-                <b class="text-blue-600 font-bold">${props.id || 'SLICK-001'}</b>
-                <span class="px-2 py-0.5 ${props.is_lookalike ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-blue-50 text-blue-700 border-blue-200'} border rounded text-[9px] font-bold uppercase">${props.is_lookalike ? 'Look-alike' : 'Confirmed Oil Spill'}</span>
-              </div>
-              <div class="grid grid-cols-2 gap-2 text-[11px] text-neutral-600 pt-1">
-                <div>Area: <b class="text-neutral-900">${parseFloat(props.area_sqkm).toFixed(2)} km²</b></div>
-                <div>Est. Vol: <b class="text-neutral-900">${parseFloat(props.estimated_volume_m3).toFixed(1)} m³</b></div>
-                <div>AI Conf: <b class="text-blue-600">${(parseFloat(props.confidence_score)*100).toFixed(1)}%</b></div>
-                <div>Damping: <b class="text-amber-700">${props.is_lookalike ? '3.8 dB (Low)' : '9.2 dB (High)'}</b></div>
-              </div>
-            </div>
-          `)
-          .addTo(map);
-      });
-
-      map.on('mouseenter', 'slicks-layer-fill', () => map.getCanvas().style.cursor = 'pointer');
-      map.on('mouseleave', 'slicks-layer-fill', () => map.getCanvas().style.cursor = '');
-
-      loadScenario('scenario_alpha_rogue_tanker');
-    });
-
-    map.on('style.load', () => {
-      setupMapLayers();
-      if (currentScenarioData) renderScenario(currentScenarioData);
-    });
-
-    // Tab Navigation Logic
-    const tabBtnSAR = document.getElementById('tabBtnSAR');
-    const tabBtnPhysics = document.getElementById('tabBtnPhysics');
-    const tabBtnThreat = document.getElementById('tabBtnThreat');
-    const tabContentSAR = document.getElementById('tabContentSAR');
-    const tabContentPhysics = document.getElementById('tabContentPhysics');
-    const tabContentThreat = document.getElementById('tabContentThreat');
-
-    function switchTab(activeBtn, activeContent) {
-      [tabBtnSAR, tabBtnPhysics, tabBtnThreat].forEach(b => {
-        b.className = "py-2 text-center text-neutral-600 hover:text-neutral-900 rounded-lg transition-all flex items-center justify-center space-x-1";
-      });
-      [tabContentSAR, tabContentPhysics, tabContentThreat].forEach(c => c.classList.add('hidden'));
-
-      activeBtn.className = "py-2 text-center text-blue-700 rounded-lg bg-white shadow-sm transition-all flex items-center justify-center space-x-1 font-bold";
-      activeContent.classList.remove('hidden');
-    }
-
-    tabBtnSAR.addEventListener('click', () => switchTab(tabBtnSAR, tabContentSAR));
-    tabBtnPhysics.addEventListener('click', () => switchTab(tabBtnPhysics, tabContentPhysics));
-    tabBtnThreat.addEventListener('click', () => switchTab(tabBtnThreat, tabContentThreat));
-
-    // Map Quick Filter Toggles
+    // Toggle Layer Visibility
     function toggleLayerVisibility(layerId, btnEl) {
       if (map.getLayer(layerId)) {
         const vis = map.getLayoutProperty(layerId, 'visibility') || 'visible';
@@ -927,9 +851,6 @@
         btnEl.style.opacity = nextVis === 'visible' ? '1.0' : '0.4';
       }
     }
-
-    let isMeasureActive = false;
-    let measureMarker = null;
 
     document.getElementById('toggleSlick').addEventListener('click', function() {
       toggleLayerVisibility('slicks-layer-fill', this);
@@ -945,11 +866,13 @@
     document.getElementById('toggleVectors').addEventListener('click', function() {
       toggleLayerVisibility('particles-layer-line', this);
     });
+
+    // Distance Measurement Tape Tool
     document.getElementById('toggleMeasure').addEventListener('click', function() {
       isMeasureActive = !isMeasureActive;
       this.style.opacity = isMeasureActive ? '1.0' : '0.5';
       if (isMeasureActive) {
-        alert("📏 Distance Tape Active!\nClick anywhere on the ocean map to measure distance and bearing to the oil spill origin point.");
+        alert("📏 Distance Tape Active!\nClick anywhere on the ocean map to measure distance to the oil spill origin point.");
       } else {
         if (map.getSource('measure-src')) {
           map.getSource('measure-src').setData({ type: 'FeatureCollection', features: [] });
@@ -973,10 +896,8 @@
       if (!isMeasureActive || !currentScenarioData) return;
       const oLat = currentScenarioData.drift_origin_cone.properties.origin_lat;
       const oLng = currentScenarioData.drift_origin_cone.properties.origin_lng;
-
       const clickLat = e.lngLat.lat;
       const clickLng = e.lngLat.lng;
-
       const distKm = calculateHaversineKm(oLat, oLng, clickLat, clickLng);
       const distNm = distKm * 0.539957;
 
@@ -992,17 +913,54 @@
       }
 
       if (measureMarker) measureMarker.remove();
-      const midLng = (oLng + clickLng) / 2.0;
-      const midLat = (oLat + clickLat) / 2.0;
-
       const popupNode = document.createElement('div');
-      popupNode.className = 'px-3 py-1.5 glass-card text-pink-600 rounded-xl text-xs font-mono font-bold shadow-lg';
+      popupNode.className = 'px-3 py-1.5 glass-pill-sleek text-pink-600 rounded-xl text-xs font-mono font-bold shadow-lg';
       popupNode.innerHTML = `📏 ${distKm.toFixed(2)} km (${distNm.toFixed(2)} NM) to Origin`;
 
       measureMarker = new maplibregl.Marker({ element: popupNode })
-        .setLngLat([midLng, midLat])
+        .setLngLat([(oLng + clickLng) / 2.0, (oLat + clickLat) / 2.0])
         .addTo(map);
     });
+
+    // Dark Vessel Scanner
+    async function loadDarkVessels(scenarioId) {
+      try {
+        const res = await fetch(`/api/dark_vessels/${scenarioId}`);
+        if (!res.ok) return;
+        const intel = await res.json();
+        intel.targets.forEach(t => {
+          if (t.is_dark_vessel) {
+            const el = document.createElement('div');
+            el.className = 'w-6.5 h-6.5 rounded-full bg-red-600 border-2 border-white glow-dark flex items-center justify-center cursor-pointer';
+            el.innerHTML = `<span class="w-2 h-2 rounded-full bg-white animate-ping"></span>`;
+            
+            el.addEventListener('click', () => {
+              openVesselDrawer({
+                name: `DARK VESSEL (${t.id})`,
+                type: 'Unflagged Radar Target',
+                mmsi: 'OFFLINE / UNKNOWN',
+                imo: 'N/A',
+                flag: 'Unflagged',
+                length_m: t.radar_length_m,
+                beam_m: t.radar_beam_m || 28,
+                gross_tonnage: 'N/A',
+                cpa_km: t.dist_to_spill_origin_km,
+                speed_anomaly: 100,
+                attribution: 99.0,
+                ais_health: 'AIS OFFLINE',
+                lng: t.lng,
+                lat: t.lat
+              });
+            });
+
+            const marker = new maplibregl.Marker({ element: el })
+              .setLngLat([t.lng, t.lat])
+              .addTo(map);
+            activeMarkers.push(marker);
+          }
+        });
+      } catch (e) { console.error("Dark vessel load error:", e); }
+    }
 
     async function loadScenario(scenarioId) {
       try {
@@ -1012,366 +970,310 @@
         currentScenarioData = data;
         renderScenario(data);
         loadDarkVessels(scenarioId);
-      } catch (err) {
-        console.error("Scenario load error:", err);
-      }
+      } catch (err) { console.error("Scenario load error:", err); }
     }
 
-    async function loadDarkVessels(scenarioId) {
-      try {
-        const res = await fetch(`/api/dark_vessels/${scenarioId}`);
-        if (!res.ok) return;
-        const intel = await res.json();
+    function openVesselDrawer(info) {
+      document.getElementById('drawerVesselName').textContent = info.name;
+      document.getElementById('drawerVesselType').textContent = `${info.type} (${info.flag})`;
+      document.getElementById('drawerMMSI').textContent = info.mmsi;
+      document.getElementById('drawerIMO').textContent = info.imo;
+      document.getElementById('drawerDimensions').textContent = `${info.length_m}m x ${info.beam_m}m`;
+      document.getElementById('drawerTonnage').textContent = info.gross_tonnage ? `${info.gross_tonnage} GT` : 'N/A';
+      document.getElementById('drawerCPA').textContent = `${info.cpa_km} km`;
+      document.getElementById('drawerSpeedAnomaly').textContent = `${info.speed_anomaly}%`;
+      document.getElementById('drawerAttribution').textContent = `${info.attribution}%`;
+      document.getElementById('drawerAISHealth').textContent = info.ais_health;
 
-        intel.targets.forEach(t => {
-          if (t.is_dark_vessel) {
-            const el = document.createElement('div');
-            el.className = 'w-6 h-6 rounded-full bg-rose-600 border-2 border-white animate-ping flex items-center justify-center cursor-pointer shadow-lg';
-            
-            const darkPopup = new maplibregl.Popup({ offset: 12 })
-              .setHTML(`
-                <div class="font-mono text-xs p-2.5 glass-card rounded-xl text-neutral-800 border-rose-200">
-                  <b class="text-rose-600">🚨 DARK VESSEL DETECTED</b><br>
-                  <span class="text-neutral-700">Length: ~${t.radar_length_m}m</span><br>
-                  <span class="text-amber-700">AIS: OFFLINE / SPOOFED</span><br>
-                  <span class="text-neutral-500">Dist to Origin: ${t.dist_to_spill_origin_km} km</span>
-                </div>
-              `);
+      selectedVesselCoord = [info.lng, info.lat];
 
-            const marker = new maplibregl.Marker({ element: el })
-              .setLngLat([t.lng, t.lat])
-              .setPopup(darkPopup)
-              .addTo(map);
-
-            activeMarkers.push(marker);
-          }
-        });
-      } catch (e) {
-        console.error("Dark vessel load error:", e);
-      }
+      const drawer = document.getElementById('vesselDrawer');
+      drawer.classList.remove('hidden');
+      drawer.classList.remove('translate-x-[400px]');
     }
 
-    function renderScenario(data) {
+    document.getElementById('btnCloseVesselDrawer').addEventListener('click', () => {
+      const drawer = document.getElementById('vesselDrawer');
+      drawer.classList.add('translate-x-[400px]');
+      setTimeout(() => drawer.classList.add('hidden'), 300);
+    });
+
+    document.getElementById('btnCenterOnVessel').addEventListener('click', () => {
+      if (selectedVesselCoord) {
+        map.flyTo({ center: selectedVesselCoord, zoom: 13.5, duration: 1000 });
+      }
+    });
+
+    function renderScenario(data, timelinePct = 100) {
       clearActiveMarkers();
+      activeVesselList = data.vessels || [];
 
-      document.getElementById('regionName').textContent = data.region_name;
-      document.getElementById('scenarioDesc').textContent = data.description;
-      document.getElementById('sarSensor').textContent = data.sar_image.satellite;
-      document.getElementById('sarTime').textContent = data.sar_image.acquisition_time.split('T')[1];
+      const regionEl = document.getElementById('regionName');
+      const subEl = document.getElementById('regionSubtitle');
 
-      const primarySlick = data.slicks[0];
+      if (regionEl) regionEl.textContent = data.region_name || 'Surveillance Sector';
+      if (subEl) subEl.textContent = data.title || 'Tactical Sector';
+
+      document.getElementById('sarSensor').textContent = data.sar_image?.satellite || 'Sentinel-1';
+      document.getElementById('sarTime').textContent = data.sar_image?.acquisition_time ? `${data.sar_image.acquisition_time.split('T')[1]} (7 Sep 2026)` : '04:15:00Z';
+
+      const primarySlick = data.slicks && data.slicks[0];
       if (primarySlick) {
-        document.getElementById('slickArea').textContent = `${primarySlick.area_sqkm.toFixed(2)} km²`;
-        document.getElementById('slickVol').textContent = `${primarySlick.estimated_volume_m3.toFixed(1)} m³`;
+        const currentArea = (primarySlick.area_sqkm * (0.3 + 0.7 * (timelinePct / 100))).toFixed(2);
+        const currentVol = (primarySlick.estimated_volume_m3 * (0.3 + 0.7 * (timelinePct / 100))).toFixed(1);
+
+        document.getElementById('slickArea').innerHTML = `${currentArea} <span class="text-xs font-bold text-rose-800">km²</span>`;
+        document.getElementById('slickVol').innerHTML = `${currentVol} <span class="text-xs font-bold text-amber-800">m³</span>`;
+
         const confPct = Math.round(primarySlick.confidence_score * 100);
         document.getElementById('aiConfidenceText').textContent = `${confPct}%`;
         document.getElementById('aiConfidenceBar').style.width = `${confPct}%`;
-
-        const alertBox = document.getElementById('lookalikeAlert');
-        const statusBadge = document.getElementById('incidentStatusBadge');
-
-        if (primarySlick.is_lookalike) {
-          alertBox.className = "p-2 rounded-lg text-[10px] font-mono leading-tight bg-amber-50 border border-amber-200 text-amber-800";
-          alertBox.textContent = `⚠️ ${primarySlick.lookalike_reason}`;
-          statusBadge.className = "px-2.5 py-0.5 text-[9px] font-mono font-bold rounded-full uppercase bg-amber-50 text-amber-700 border border-amber-200";
-          statusBadge.textContent = "Look-Alike (False Alarm)";
-        } else {
-          alertBox.className = "p-2 rounded-lg text-[10px] font-mono leading-tight bg-rose-50 border border-rose-200 text-rose-800";
-          alertBox.textContent = `🚨 Confirmed Mineral Oil Spill (SAR Damping: High)`;
-          statusBadge.className = "px-2.5 py-0.5 text-[9px] font-mono font-bold rounded-full uppercase bg-rose-50 text-rose-600 border border-rose-200";
-          statusBadge.textContent = "Verified Spill";
-        }
       }
 
-      document.getElementById('windData').textContent = `${data.environmental.wind_speed_ms.toFixed(1)} m/s @ ${data.environmental.wind_direction_deg}°`;
-      document.getElementById('currentData').textContent = `${data.environmental.current_speed_ms.toFixed(2)} m/s @ ${data.environmental.current_direction_deg}°`;
-      document.getElementById('elapsedDrift').textContent = `${data.drift_origin_cone.properties.elapsed_hours} hrs`;
-      document.getElementById('originCoords').textContent = `${data.drift_origin_cone.properties.origin_lat.toFixed(3)}°N, ${data.drift_origin_cone.properties.origin_lng.toFixed(3)}°E`;
-
-      if (map.getSource('slicks-src')) {
+      // 1. Slick Polygons Layer
+      if (map.getSource('slicks-src') && data.slicks) {
         const slickFeatures = data.slicks.map(s => ({
           "type": "Feature",
           "geometry": s.geojson,
-          "properties": {
-            "id": s.id,
-            "area_sqkm": s.area_sqkm,
-            "estimated_volume_m3": s.estimated_volume_m3,
-            "confidence_score": s.confidence_score,
-            "is_lookalike": s.is_lookalike
-          }
+          "properties": { "id": s.id, "is_lookalike": s.is_lookalike }
         }));
         map.getSource('slicks-src').setData({ type: 'FeatureCollection', features: slickFeatures });
       }
 
-      if (map.getSource('cone-src')) {
+      // 2. Origin Cone Layer
+      if (map.getSource('cone-src') && data.drift_origin_cone) {
         map.getSource('cone-src').setData(data.drift_origin_cone);
       }
 
-      const originLat = data.drift_origin_cone.properties.origin_lat;
-      const originLng = data.drift_origin_cone.properties.origin_lng;
+      let centerLng = 103.85;
+      let centerLat = 1.24;
 
-      const originNode = document.createElement('div');
-      originNode.className = 'w-6 h-6 rounded-full bg-amber-500 border-2 border-white flex items-center justify-center font-mono text-[9px] font-bold text-white shadow-md';
-      originNode.textContent = 'X0';
+      // 3. Add Glowing Origin Marker (X0)
+      if (data.drift_origin_cone?.properties) {
+        const oLat = data.drift_origin_cone.properties.origin_lat;
+        const oLng = data.drift_origin_cone.properties.origin_lng;
+        centerLat = oLat;
+        centerLng = oLng;
 
-      const originMarker = new maplibregl.Marker({ element: originNode })
-        .setLngLat([originLng, originLat])
-        .setPopup(new maplibregl.Popup().setHTML(`<b class="font-mono text-xs text-amber-700">Spill Origin Point (-${data.drift_origin_cone.properties.elapsed_hours}h)</b>`))
-        .addTo(map);
+        const originNode = document.createElement('div');
+        originNode.className = 'w-6 h-6 rounded-full bg-amber-500 border-2 border-white glow-origin flex items-center justify-center font-mono text-[9px] font-bold text-white shadow-md cursor-pointer';
+        originNode.textContent = 'X0';
+        const originMarker = new maplibregl.Marker({ element: originNode })
+          .setLngLat([oLng, oLat])
+          .setPopup(new maplibregl.Popup({ offset: 12 }).setHTML(`<div class="p-2.5 font-mono text-xs glass-pill-sleek rounded-2xl"><b class="text-amber-700">Discharge Origin Coordinate</b><br>Backtracked: -${data.drift_origin_cone.properties.elapsed_hours}h</div>`))
+          .addTo(map);
+        activeMarkers.push(originMarker);
+      }
 
-      activeMarkers.push(originMarker);
-
+      // 4. Buffer rings & Streamlines
       if (primarySlick && primarySlick.centroid) {
         const cLat = primarySlick.centroid.lat;
         const cLng = primarySlick.centroid.lng;
+        centerLat = cLat;
+        centerLng = cLng;
 
         if (map.getSource('buffers-src')) {
           const bufferFeatures = [
             { feat: createGeoJSONCircle([cLng, cLat], 1.0), color: '#2563EB' },
             { feat: createGeoJSONCircle([cLng, cLat], 3.0), color: '#D97706' },
             { feat: createGeoJSONCircle([cLng, cLat], 5.0), color: '#7C3AED' }
-          ].map(b => {
-            b.feat.properties.color = b.color;
-            return b.feat;
-          });
+          ].map(b => { b.feat.properties.color = b.color; return b.feat; });
           map.getSource('buffers-src').setData({ type: 'FeatureCollection', features: bufferFeatures });
         }
-
-        renderOceanVectorStreamlines(
-          cLng,
-          cLat,
-          data.environmental?.current_direction_deg || 45,
-          data.environmental?.current_speed_ms || 0.45,
-          data.environmental?.wind_direction_deg || 225,
-          data.environmental?.wind_speed_ms || 6.2
-        );
+        renderOceanVectorStreamlines(cLng, cLat, data.environmental?.current_direction_deg, data.environmental?.current_speed_ms, data.environmental?.wind_direction_deg, data.environmental?.wind_speed_ms);
       }
 
-      const vesselLineFeatures = [];
-      data.vessels.forEach(vessel => {
-        const culpritMatch = data.culprits.find(c => c.mmsi === vessel.metadata.mmsi);
-        let trackColor = '#3B82F6';
-        let width = 2.5;
-        if (culpritMatch) {
-          if (culpritMatch.verdict === 'PRIMARY SUSPECT') { trackColor = '#DC2626'; width = 4.0; }
-          else if (culpritMatch.verdict === 'POTENTIAL CONTRIBUTOR') { trackColor = '#D97706'; width = 2.8; }
-        }
+      // 5. Render Vessel Tracks & Color Markers
+      if (data.vessels) {
+        const vesselLineFeatures = [];
+        data.vessels.forEach(vessel => {
+          const culpritMatch = data.culprits?.find(c => c.mmsi === vessel.metadata.mmsi);
+          let trackColor = '#3B82F6';
+          let width = 2.5;
+          let isPrimary = false;
+          let isPotential = false;
 
-        const lineCoords = vessel.positions.map(p => [p.lng, p.lat]);
-        vesselLineFeatures.push({
-          "type": "Feature",
-          "geometry": { "type": "LineString", "coordinates": lineCoords },
-          "properties": { "name": vessel.metadata.name, "color": trackColor, "width": width }
-        });
+          if (culpritMatch) {
+            if (culpritMatch.verdict === 'PRIMARY SUSPECT') { trackColor = '#EF4444'; width = 4.0; isPrimary = true; }
+            else if (culpritMatch.verdict === 'POTENTIAL CONTRIBUTOR') { trackColor = '#F59E0B'; width = 2.8; isPotential = true; }
+          }
 
-        const latestPos = vessel.positions[vessel.positions.length - 1];
-        const vNode = document.createElement('div');
-        vNode.className = `w-4 h-4 rounded-full border-2 border-white flex items-center justify-center font-mono text-[8px] font-bold text-white shadow-md ${culpritMatch?.verdict === 'PRIMARY SUSPECT' ? 'bg-rose-600 animate-pulse w-5 h-5' : 'bg-neutral-700'}`;
-        
-        const shipMarker = new maplibregl.Marker({ element: vNode })
-          .setLngLat([latestPos.lng, latestPos.lat])
-          .setPopup(new maplibregl.Popup().setHTML(`<div class="font-mono text-xs p-2 glass-card rounded-xl"><b>${vessel.metadata.name}</b><br>Type: ${vessel.metadata.ship_type}<br>MMSI: ${vessel.metadata.mmsi}</div>`))
-          .addTo(map);
-
-        activeMarkers.push(shipMarker);
-      });
-
-      if (map.getSource('vessels-src')) {
-        map.getSource('vessels-src').setData({ type: 'FeatureCollection', features: vesselLineFeatures });
-      }
-
-      const listContainer = document.getElementById('culpritList');
-      listContainer.innerHTML = '';
-      document.getElementById('vesselCountBadge').textContent = `${data.culprits.length} Vessels`;
-
-      data.culprits.forEach(c => {
-        const isPrimary = c.verdict === 'PRIMARY SUSPECT';
-        const isPotential = c.verdict === 'POTENTIAL CONTRIBUTOR';
-        const badgeColor = isPrimary ? 'bg-rose-50 text-rose-700 border-rose-200' : isPotential ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-neutral-100 text-neutral-600 border-black/6';
-
-        const card = document.createElement('div');
-        card.className = `p-3.5 rounded-xl border transition-all cursor-pointer ${isPrimary ? 'bg-rose-50/70 border-rose-300 shadow-sm' : 'bg-white border-black/8 hover:border-black/15 shadow-sm'}`;
-        card.innerHTML = `
-          <div class="flex items-center justify-between mb-1.5">
-            <div class="flex items-center space-x-1.5">
-              <span class="font-mono text-xs font-bold text-neutral-400">#${c.rank}</span>
-              <span class="font-bold text-sm text-neutral-900">${c.vessel_name}</span>
-            </div>
-            <span class="px-2 py-0.5 text-[9px] font-mono font-bold rounded-full uppercase border ${badgeColor}">${c.verdict}</span>
-          </div>
-
-          <div class="text-[11px] font-mono text-neutral-500 flex justify-between mb-2">
-            <span>${c.ship_type}</span>
-            <span class="text-neutral-700 font-semibold">MMSI: ${c.mmsi}</span>
-          </div>
-
-          <div class="space-y-1 mb-2.5">
-            <div class="flex justify-between items-center text-[10px] font-mono">
-              <span class="text-neutral-500">Attribution Probability:</span>
-              <span class="font-extrabold ${isPrimary ? 'text-rose-600 text-xs' : 'text-neutral-700'}">${c.composite_score}%</span>
-            </div>
-            <div class="w-full h-1.5 bg-neutral-100 rounded-full overflow-hidden border border-black/6">
-              <div class="h-full ${isPrimary ? 'bg-rose-600' : isPotential ? 'bg-amber-500' : 'bg-neutral-400'} rounded-full" style="width: ${c.composite_score}%"></div>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-3 gap-1 text-[9px] font-mono text-center bg-neutral-50 p-1.5 rounded-lg border border-black/6">
-            <div>
-              <div class="text-neutral-400">CPA DIST</div>
-              <div class="font-bold text-neutral-800">${c.closest_approach_distance_km} km</div>
-            </div>
-            <div>
-              <div class="text-neutral-400">SPEED ANOMALY</div>
-              <div class="font-bold ${c.speed_anomaly_score >= 80 ? 'text-amber-600' : 'text-neutral-800'}">${c.speed_anomaly_score}%</div>
-            </div>
-            <div>
-              <div class="text-neutral-400">ALIGNMENT</div>
-              <div class="font-bold text-neutral-800">${c.alignment_score}%</div>
-            </div>
-          </div>
-        `;
-        listContainer.appendChild(card);
-      });
-
-      map.flyTo({
-        center: [originLng, originLat],
-        zoom: 11,
-        pitch: 45,
-        bearing: -15,
-        duration: 1500
-      });
-      lucide.createIcons();
-    }
-
-    const landfallModal = document.getElementById('landfallModal');
-    document.getElementById('btnForwardDrift').addEventListener('click', async () => {
-      if (!currentScenarioData) return;
-      const btn = document.getElementById('btnForwardDrift');
-      const origText = btn.innerHTML;
-      btn.innerHTML = `<i data-lucide="loader" class="w-4 h-4 animate-spin"></i><span>Simulating 72h...</span>`;
-      lucide.createIcons();
-
-      try {
-        const res = await fetch(`/api/forward_drift/${currentScenarioData.id}`);
-        if (!res.ok) throw new Error("Failed to fetch forward forecast");
-        const forecast = await res.json();
-
-        const pts = forecast.trajectory_72h.map(p => [p.lng, p.lat]);
-        if (map.getSource('forward-src')) {
-          map.getSource('forward-src').setData({
-            "type": "FeatureCollection",
-            "features": [{
-              "type": "Feature",
-              "geometry": { "type": "LineString", "coordinates": pts },
-              "properties": {}
-            }]
+          const lineCoords = vessel.positions.map(p => [p.lng, p.lat]);
+          vesselLineFeatures.push({
+            "type": "Feature",
+            "geometry": { "type": "LineString", "coordinates": lineCoords },
+            "properties": { "name": vessel.metadata.name, "color": trackColor, "width": width }
           });
-        }
 
-        const impact = forecast.landfall_impact;
-        if (impact) {
-          const impNode = document.createElement('div');
-          impNode.className = 'w-7 h-7 rounded-full bg-purple-600 border-2 border-white animate-ping flex items-center justify-center cursor-pointer shadow-xl';
+          const posCount = vessel.positions.length;
+          const posIdx = Math.min(posCount - 1, Math.floor((timelinePct / 100) * posCount));
+          const currentPos = vessel.positions[posIdx];
 
-          const impactMarker = new maplibregl.Marker({ element: impNode })
-            .setLngLat([impact.impact_lng, impact.impact_lat])
-            .setPopup(new maplibregl.Popup().setHTML(`
-              <div class="font-mono text-xs p-2.5 glass-card rounded-xl text-neutral-900 border-purple-200">
-                <b class="text-purple-700">🚨 PROJECTED COASTAL IMPACT</b><br>
-                <b>Site:</b> ${impact.target_name}<br>
-                <b>ETA:</b> <span class="text-rose-600 font-bold">${impact.eta_hours} hrs</span><br>
-                <b>Booms:</b> ${forecast.containment_plan.containment_booms_recommended_m}m
-              </div>
-            `))
-            .addTo(map);
-
-          activeMarkers.push(impactMarker);
-
-          document.getElementById('landfallTargetText').textContent = `Target: ${impact.target_name} (${impact.target_type})`;
-          document.getElementById('landfallEtaText').textContent = `${impact.eta_hours} Hours`;
-        }
-
-        const w24 = forecast.weathering_timeline.find(w => w.elapsed_hours === 24) || forecast.weathering_timeline[forecast.weathering_timeline.length - 1];
-        document.getElementById('wEvapPct').textContent = `${w24.evaporated_pct}%`;
-        document.getElementById('wEmulsionPct').textContent = `${w24.emulsified_water_pct}%`;
-        document.getElementById('wEmulsifiedVol').textContent = `${w24.current_emulsified_volume_m3} m³`;
-        document.getElementById('wViscosity').textContent = `${w24.dynamic_viscosity_cp.toLocaleString()} cP`;
-
-        document.getElementById('cBooms').textContent = `${forecast.containment_plan.containment_booms_recommended_m} meters of Offshore Inflatable Booms`;
-        document.getElementById('cDispersants').textContent = forecast.containment_plan.chemical_dispersant_status;
-
-        landfallModal.classList.remove('hidden');
-
-      } catch (err) {
-        alert("Forward drift error: " + err);
-      } finally {
-        btn.innerHTML = origText;
-        lucide.createIcons();
-      }
-    });
-
-    document.getElementById('btnCloseLandfall').addEventListener('click', () => {
-      landfallModal.classList.add('hidden');
-    });
-
-    document.getElementById('btnGeoTIFF').addEventListener('click', async () => {
-      const btn = document.getElementById('btnGeoTIFF');
-      const originalHTML = btn.innerHTML;
-      btn.innerHTML = `<i data-lucide="loader" class="w-4 h-4 animate-spin"></i><span>Processing SAR...</span>`;
-      lucide.createIcons();
-
-      try {
-        const res = await fetch('/api/process_synthetic_geotiff', { method: 'POST' });
-        const result = await res.json();
-        
-        const polyFeatures = result.polygons.map((polyCoords, i) => ({
-          "type": "Feature",
-          "geometry": { "type": "Polygon", "coordinates": [polyCoords] },
-          "properties": { "id": `SAR-UNET-${i+1}`, "area_sqkm": 2.60, "estimated_volume_m3": 7.8, "confidence_score": 0.99, "is_lookalike": false }
-        }));
-
-        if (map.getSource('slicks-src')) {
-          map.getSource('slicks-src').setData({ type: 'FeatureCollection', features: polyFeatures });
-        }
-
-        result.radar_ships.forEach(s => {
-          const node = document.createElement('div');
-          node.className = 'w-4 h-4 rounded-full bg-emerald-500 border-2 border-white shadow-md';
+          const ballNode = document.createElement('div');
           
-          const shipMarker = new maplibregl.Marker({ element: node })
-            .setLngLat([s.lng, s.lat])
-            .setPopup(new maplibregl.Popup().setHTML(`<div class="font-mono text-xs p-2 glass-card rounded-xl"><b>CFAR Radar Spotter:</b> ${s.id}<br>Length: ~${s.estimated_length_m}m<br>SNR: ${s.cfar_snr_db} dB</div>`))
+          if (isPrimary) {
+            ballNode.className = 'w-7 h-7 rounded-full bg-rose-600 border-2 border-white glow-threat flex items-center justify-center text-white font-mono text-[9px] font-bold animate-pulse cursor-pointer';
+            ballNode.innerHTML = `<i data-lucide="navigation" class="w-3.5 h-3.5 text-white"></i>`;
+          } else if (isPotential) {
+            ballNode.className = 'w-5.5 h-5.5 rounded-full bg-amber-500 border-2 border-white shadow-lg flex items-center justify-center text-white font-mono text-[8px] font-bold cursor-pointer';
+            ballNode.innerHTML = `<i data-lucide="navigation" class="w-2.5 h-2.5 text-white"></i>`;
+          } else {
+            ballNode.className = 'w-4.5 h-4.5 rounded-full bg-blue-600 border-2 border-white shadow-md flex items-center justify-center text-white font-mono text-[8px] cursor-pointer';
+            ballNode.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-white"></span>`;
+          }
+
+          ballNode.addEventListener('click', () => {
+            openVesselDrawer({
+              name: vessel.metadata.name,
+              type: vessel.metadata.ship_type,
+              mmsi: vessel.metadata.mmsi,
+              imo: vessel.metadata.imo || 9487123,
+              flag: vessel.metadata.flag || 'Panama',
+              length_m: vessel.metadata.length_m || 245,
+              beam_m: vessel.metadata.beam_m || 42,
+              gross_tonnage: vessel.metadata.gross_tonnage || 62500,
+              cpa_km: culpritMatch ? culpritMatch.closest_approach_distance_km : 1.4,
+              speed_anomaly: culpritMatch ? culpritMatch.speed_anomaly_score : 12,
+              attribution: culpritMatch ? culpritMatch.composite_score : 18.5,
+              ais_health: 'HEALTHY (ACTIVE TRANSPEONDER)',
+              lng: currentPos.lng,
+              lat: currentPos.lat
+            });
+          });
+
+          const shipMarker = new maplibregl.Marker({ element: ballNode })
+            .setLngLat([currentPos.lng, currentPos.lat])
             .addTo(map);
 
           activeMarkers.push(shipMarker);
         });
 
-        alert(`✅ SAR Pipeline Complete!\n\n1. Ingested 16-bit GeoTIFF (512x512)\n2. Applied 5x5 Adaptive Lee Filter\n3. Inferred PyTorch U-Net Segmentation (${result.polygons_detected_count} Slicks Vectorized)\n4. Ran 2D CA-CFAR Radar Detector (${result.radar_ships_detected_count} Radar Ships Identified)`);
-      } catch (err) {
-        alert("Error running GeoTIFF pipeline: " + err);
-      } finally {
-        btn.innerHTML = originalHTML;
-        lucide.createIcons();
+        if (map.getSource('vessels-src')) {
+          map.getSource('vessels-src').setData({ type: 'FeatureCollection', features: vesselLineFeatures });
+        }
+      }
+
+      // 6. Render Culprit Cards in Vessel Tab
+      const listContainer = document.getElementById('culpritList');
+      if (listContainer && data.culprits) {
+        listContainer.innerHTML = '';
+        document.getElementById('vesselCountBadge').textContent = `${data.culprits.length} Vessels`;
+        data.culprits.forEach(c => {
+          const isPrimary = c.verdict === 'PRIMARY SUSPECT';
+          const card = document.createElement('div');
+          card.className = `p-2.5 rounded-xl border transition-all cursor-pointer ${isPrimary ? 'bg-rose-50 border-rose-300' : 'bg-white/80 border-black/8'}`;
+          card.innerHTML = `
+            <div class="flex items-center justify-between mb-0.5">
+              <span class="font-bold text-xs text-neutral-900">${c.vessel_name}</span>
+              <span class="px-1.5 py-0.5 text-[8px] font-mono font-bold rounded uppercase ${isPrimary ? 'bg-rose-600 text-white' : 'bg-neutral-100 text-neutral-600'}">${c.verdict}</span>
+            </div>
+            <div class="text-[10px] font-mono text-neutral-500 flex justify-between">
+              <span>MMSI: ${c.mmsi}</span>
+              <span class="font-extrabold ${isPrimary ? 'text-rose-600' : 'text-neutral-800'}">${c.composite_score}% Match</span>
+            </div>
+          `;
+          
+          card.addEventListener('click', () => {
+            const matchVessel = data.vessels.find(v => v.metadata.mmsi === c.mmsi);
+            if (matchVessel) {
+              const lastP = matchVessel.positions[matchVessel.positions.length - 1];
+              openVesselDrawer({
+                name: c.vessel_name,
+                type: c.ship_type,
+                mmsi: c.mmsi,
+                imo: matchVessel.metadata.imo || 9487123,
+                flag: matchVessel.metadata.flag || 'Panama',
+                length_m: matchVessel.metadata.length_m || 245,
+                beam_m: matchVessel.metadata.beam_m || 42,
+                gross_tonnage: matchVessel.metadata.gross_tonnage || 62500,
+                cpa_km: c.closest_approach_distance_km,
+                speed_anomaly: c.speed_anomaly_score,
+                attribution: c.composite_score,
+                ais_health: 'HEALTHY',
+                lng: lastP.lng,
+                lat: lastP.lat
+              });
+              map.flyTo({ center: [lastP.lng, lastP.lat], zoom: 13.0, duration: 1000 });
+            }
+          });
+
+          listContainer.appendChild(card);
+        });
+      }
+
+      let targetZoom = 11.5;
+      if (data.id === 'scenario_alpha_rogue_tanker') targetZoom = 10.8;
+      if (data.id === 'scenario_gamma_lookalike') targetZoom = 10.2;
+
+      map.flyTo({
+        center: [centerLng, centerLat],
+        zoom: targetZoom,
+        pitch: is3DTilt ? 45 : 0,
+        bearing: is3DTilt ? -15 : 0,
+        duration: 1200
+      });
+
+      lucide.createIcons();
+    }
+
+    // Export GeoJSON Capability
+    document.getElementById('btnExportGeoJSON').addEventListener('click', () => {
+      if (!currentScenarioData) return;
+      const geojsonPayload = {
+        "type": "FeatureCollection",
+        "features": [
+          ...(currentScenarioData.slicks || []).map(s => ({ "type": "Feature", "geometry": s.geojson, "properties": { "id": s.id, "type": "Slick Area" } })),
+          currentScenarioData.drift_origin_cone,
+          ...(currentScenarioData.vessels || []).map(v => ({ "type": "Feature", "geometry": { "type": "LineString", "coordinates": v.positions.map(p => [p.lng, p.lat]) }, "properties": { "name": v.metadata.name, "mmsi": v.metadata.mmsi } }))
+        ]
+      };
+      const blob = new Blob([JSON.stringify(geojsonPayload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `sealens_${currentScenarioData.id}_c2_layers.geojson`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    // Search Input Auto-Center & Focus
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+      const q = e.target.value.toLowerCase().trim();
+      if (!q || !activeVesselList.length) return;
+
+      const match = activeVesselList.find(v => 
+        v.metadata.name.toLowerCase().includes(q) || 
+        String(v.metadata.mmsi).includes(q)
+      );
+
+      if (match) {
+        const lastP = match.positions[match.positions.length - 1];
+        map.flyTo({ center: [lastP.lng, lastP.lat], zoom: 13.5, duration: 800 });
       }
     });
 
+    // Scenario Dropdown Listener
     document.getElementById('scenarioSelect').addEventListener('change', (e) => {
       loadScenario(e.target.value);
     });
 
+    // Forensic Dossier Modal
     const dossierModal = document.getElementById('dossierModal');
     document.getElementById('btnDossier').addEventListener('click', async () => {
       if (!currentScenarioData) return;
-      const res = await fetch(`/api/dossier/${currentScenarioData.id}/markdown`);
-      const mdText = await res.text();
-      document.getElementById('dossierMarkdownContent').textContent = mdText;
-      dossierModal.classList.remove('hidden');
+      try {
+        const res = await fetch(`/api/dossier/${currentScenarioData.id}/markdown`);
+        const mdText = await res.text();
+        document.getElementById('dossierMarkdownContent').textContent = mdText;
+        dossierModal.classList.remove('hidden');
+      } catch (e) { alert("Error loading dossier: " + e); }
     });
 
     document.getElementById('btnCloseDossier').addEventListener('click', () => {
       dossierModal.classList.add('hidden');
     });
 
+    // Timeline Scrubber Controls
     const timeSlider = document.getElementById('timeSlider');
     const playBtn = document.getElementById('btnPlayDrift');
     const playIcon = document.getElementById('playIcon');
@@ -1386,7 +1288,7 @@
           val = (val + 2) % 102;
           timeSlider.value = val;
           updateSliderTime(val);
-        }, 100);
+        }, 120);
       } else {
         clearInterval(playInterval);
         playIcon.setAttribute('data-lucide', 'play');
@@ -1400,10 +1302,30 @@
 
     function updateSliderTime(val) {
       if (!currentScenarioData) return;
-      const elapsed = currentScenarioData.drift_origin_cone.properties.elapsed_hours;
-      const currentDriftHour = ((val / 100) * elapsed).toFixed(1);
-      currentTimeLabel.textContent = `T + ${currentDriftHour} hrs drift (Scrubber ${val}%)`;
+      
+      let stepTime = "06:00 UTC (Detection Pass)";
+      if (val < 25) stepTime = "01:30 UTC (Initial Transit)";
+      else if (val < 50) stepTime = "03:00 UTC (Discharge Event)";
+      else if (val < 75) stepTime = "04:15 UTC (SAR Acquisition)";
+
+      currentTimeLabel.textContent = stepTime;
+      if (currentScenarioData) {
+        renderScenario(currentScenarioData, val);
+      }
     }
+
+    // Center Target button
+    document.getElementById('btnCenterTarget').addEventListener('click', () => {
+      if (currentScenarioData?.drift_origin_cone?.properties) {
+        map.flyTo({
+          center: [currentScenarioData.drift_origin_cone.properties.origin_lng, currentScenarioData.drift_origin_cone.properties.origin_lat],
+          zoom: 11.5,
+          pitch: is3DTilt ? 45 : 0,
+          bearing: is3DTilt ? -15 : 0,
+          duration: 1000
+        });
+      }
+    });
   </script>
 </body>
 </html>
