@@ -33,78 +33,302 @@
 
   <style>
     body {
-      background-color: #F8F9FA;
+      background-color: #F0F2F5;
       color: #0A0A0A;
       overflow: hidden;
       font-family: 'Inter Tight', 'Plus Jakarta Sans', sans-serif;
     }
 
-    /* FLOATING SURVEILLANCE OVERLAY CARD */
+    /* ──────────────────────────────────────────
+       PREMIUM GLASSMORPHISM SIDEBAR
+    ────────────────────────────────────────── */
     .sidebar {
       position: absolute;
-      left: 16px;
-      top: 16px;
-      max-height: calc(100vh - 88px);
-      width: 380px;
-      background: rgba(255, 255, 255, 0.94);
-      backdrop-filter: blur(24px) saturate(180%);
-      -webkit-backdrop-filter: blur(24px) saturate(180%);
-      border: 1px solid rgba(0, 0, 0, 0.09);
-      border-radius: 28px;
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.10), 0 4px 12px rgba(0, 0, 0, 0.05);
+      left: 14px;
+      top: 14px;
+      max-height: calc(100vh - 84px);
+      width: 385px;
+
+      /* Glass layers: base + inner highlight */
+      background:
+        linear-gradient(
+          160deg,
+          rgba(255,255,255,0.82) 0%,
+          rgba(248,250,252,0.75) 60%,
+          rgba(241,245,249,0.70) 100%
+        );
+      backdrop-filter: blur(32px) saturate(200%) brightness(1.04);
+      -webkit-backdrop-filter: blur(32px) saturate(200%) brightness(1.04);
+
+      /* Inner light border — the "glass edge" */
+      border: 1px solid rgba(255,255,255,0.72);
+      border-bottom-color: rgba(255,255,255,0.38);
+      border-right-color: rgba(255,255,255,0.38);
+      border-radius: 24px;
+
+      /* Layered shadows: ambient + directional + specular highlight */
+      box-shadow:
+        0 32px 80px rgba(0,0,0,0.13),
+        0 8px 24px rgba(0,0,0,0.07),
+        0 2px 6px rgba(0,0,0,0.04),
+        inset 0 1px 0 rgba(255,255,255,0.90),
+        inset 0 -1px 0 rgba(0,0,0,0.04);
+
       z-index: 20;
       display: flex;
       flex-direction: column;
       pointer-events: auto;
+
+      /* Entry animation */
+      animation: sidebarSlideIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+
+    @keyframes sidebarSlideIn {
+      from { opacity: 0; transform: translateX(-24px) scale(0.97); }
+      to   { opacity: 1; transform: translateX(0)    scale(1);    }
+    }
+
+    /* Sidebar → Map feather fade */
+    .sidebar::after {
+      content: '';
+      position: absolute;
+      left: 100%;
+      top: 0;
+      width: 120px;
+      height: 100%;
+      pointer-events: none;
+      border-radius: 0;
+      background: linear-gradient(
+        to right,
+        rgba(240,242,245,0.38) 0%,
+        rgba(240,242,245,0.18) 35%,
+        rgba(240,242,245,0.06) 65%,
+        rgba(240,242,245,0.00) 100%
+      );
+    }
+
+    /* ──────────────────────────────────────────
+       GLASS METRIC CARDS
+    ────────────────────────────────────────── */
+    .glass-card {
+      background:
+        linear-gradient(
+          135deg,
+          rgba(255,255,255,0.88) 0%,
+          rgba(248,250,252,0.72) 100%
+        );
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border: 1px solid rgba(255,255,255,0.80);
+      border-bottom-color: rgba(0,0,0,0.06);
+      border-right-color: rgba(0,0,0,0.06);
+      box-shadow:
+        0 4px 16px rgba(0,0,0,0.06),
+        0 1px 4px rgba(0,0,0,0.04),
+        inset 0 1px 0 rgba(255,255,255,0.95);
+      transition: box-shadow 0.25s ease, transform 0.22s ease;
+    }
+    .glass-card:hover {
+      box-shadow:
+        0 8px 28px rgba(0,0,0,0.10),
+        0 2px 8px rgba(0,0,0,0.05),
+        inset 0 1px 0 rgba(255,255,255,1);
+      transform: translateY(-1px);
+    }
+
+    /* Incident alert card — glass tinted red */
+    .glass-alert {
+      background:
+        linear-gradient(
+          135deg,
+          rgba(255,237,237,0.80) 0%,
+          rgba(255,228,228,0.65) 100%
+        );
+      backdrop-filter: blur(20px) saturate(160%);
+      -webkit-backdrop-filter: blur(20px) saturate(160%);
+      border: 1px solid rgba(252,165,165,0.55);
+      border-bottom-color: rgba(239,68,68,0.18);
+      box-shadow:
+        0 4px 20px rgba(239,68,68,0.10),
+        0 1px 4px rgba(239,68,68,0.06),
+        inset 0 1px 0 rgba(255,255,255,0.80);
     }
 
     /* MAP CANVAS HIGH-CONTRAST FILTER */
     .maplibregl-canvas, .mapboxgl-canvas {
-      filter: contrast(1.28) brightness(0.94) saturate(1.15) !important;
+      filter: contrast(1.32) brightness(0.93) saturate(1.18) !important;
     }
 
-    /* RADIAL MAP VIGNETTE */
+    /* RADIAL MAP VIGNETTE — subtler corners */
     .map-vignette {
       position: absolute;
       inset: 0;
       pointer-events: none;
       z-index: 10;
       background: radial-gradient(
-        circle at center,
-        transparent 55%,
-        rgba(0, 0, 0, 0.035) 100%
+        ellipse at center,
+        transparent 45%,
+        rgba(0,0,0,0.04) 75%,
+        rgba(0,0,0,0.09) 100%
       );
     }
 
+    /* ──────────────────────────────────────────
+       FLOATING PILL CONTROLS (top/bottom)
+    ────────────────────────────────────────── */
     .glass-pill-sleek {
-      background: rgba(255, 255, 255, 0.85);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.5);
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+      background:
+        linear-gradient(
+          135deg,
+          rgba(255,255,255,0.88) 0%,
+          rgba(248,250,252,0.78) 100%
+        );
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border: 1px solid rgba(255,255,255,0.75);
+      box-shadow:
+        0 6px 20px rgba(0,0,0,0.07),
+        0 1px 4px rgba(0,0,0,0.04),
+        inset 0 1px 0 rgba(255,255,255,0.95);
     }
 
-    .custom-scrollbar::-webkit-scrollbar {
-      width: 3px;
-      height: 3px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-track {
-      background: transparent;
-    }
+    /* ──────────────────────────────────────────
+       SCROLLBAR
+    ────────────────────────────────────────── */
+    .custom-scrollbar::-webkit-scrollbar { width: 3px; height: 3px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
     .custom-scrollbar::-webkit-scrollbar-thumb {
-      background: rgba(0, 0, 0, 0.15);
+      background: rgba(0,0,0,0.12);
       border-radius: 4px;
     }
 
-    /* Glowing Highlights */
+    /* ──────────────────────────────────────────
+       GLOW MARKERS
+    ────────────────────────────────────────── */
     .glow-threat {
-      box-shadow: 0 0 16px rgba(239, 68, 68, 0.7), 0 0 4px rgba(239, 68, 68, 0.9);
+      box-shadow: 0 0 0 3px rgba(239,68,68,0.25), 0 0 18px rgba(239,68,68,0.65), 0 0 4px rgba(239,68,68,0.9);
     }
     .glow-origin {
-      box-shadow: 0 0 14px rgba(245, 158, 11, 0.6);
+      box-shadow: 0 0 0 3px rgba(245,158,11,0.20), 0 0 14px rgba(245,158,11,0.55);
     }
     .glow-dark {
-      box-shadow: 0 0 20px rgba(225, 29, 72, 0.8);
+      box-shadow: 0 0 0 4px rgba(225,29,72,0.25), 0 0 22px rgba(225,29,72,0.75);
+    }
+
+    /* ──────────────────────────────────────────
+       NAVBAR ACCENT LINE
+    ────────────────────────────────────────── */
+    .navbar-accent {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(
+        to right,
+        transparent 0%,
+        rgba(14,165,233,0.4) 20%,
+        rgba(99,102,241,0.5) 50%,
+        rgba(239,68,68,0.4) 80%,
+        transparent 100%
+      );
+      animation: accentShimmer 6s ease infinite;
+      background-size: 200% 100%;
+    }
+    @keyframes accentShimmer {
+      0%   { background-position: 0% 0%; }
+      50%  { background-position: 100% 0%; }
+      100% { background-position: 0% 0%; }
+    }
+
+    /* ──────────────────────────────────────────
+       STAGGERED CARD ENTRY
+    ────────────────────────────────────────── */
+    .fade-up {
+      animation: fadeUp 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+    .fade-up-d1 { animation-delay: 0.08s; }
+    .fade-up-d2 { animation-delay: 0.16s; }
+    .fade-up-d3 { animation-delay: 0.24s; }
+    .fade-up-d4 { animation-delay: 0.32s; }
+    .fade-up-d5 { animation-delay: 0.40s; }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0);    }
+    }
+
+    /* ──────────────────────────────────────────
+       AI CONFIDENCE BAR GLOW
+    ────────────────────────────────────────── */
+    .confidence-bar {
+      position: relative;
+      overflow: hidden;
+    }
+    .confidence-bar::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(255,255,255,0.5) 50%,
+        transparent 100%
+      );
+      background-size: 200% 100%;
+      animation: shimmerBar 2.5s ease infinite;
+    }
+    @keyframes shimmerBar {
+      0%   { background-position: -200% 0%; }
+      100% { background-position:  200% 0%; }
+    }
+
+    /* ──────────────────────────────────────────
+       BUTTON POLISH
+    ────────────────────────────────────────── */
+    .btn-premium {
+      transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .btn-premium:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.14);
+    }
+    .btn-premium:active {
+      transform: translateY(0) scale(0.98);
+    }
+
+    /* ──────────────────────────────────────────
+       TAB UNDERLINE SMOOTH TRANSITION
+    ────────────────────────────────────────── */
+    .tab-btn {
+      position: relative;
+      transition: color 0.2s ease;
+    }
+    .tab-btn::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0; right: 0;
+      height: 2px;
+      border-radius: 1px;
+      background: #0A0A0A;
+      transform: scaleX(0);
+      transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+      transform-origin: left;
+    }
+    .tab-btn.active::after { transform: scaleX(1); }
+
+    /* ──────────────────────────────────────────
+       SECTION DIVIDER GRADIENT
+    ────────────────────────────────────────── */
+    .divider-gradient {
+      height: 1px;
+      background: linear-gradient(
+        to right,
+        transparent,
+        rgba(0,0,0,0.10) 30%,
+        rgba(0,0,0,0.10) 70%,
+        transparent
+      );
     }
 
     /* MapLibre custom popup override */
@@ -114,15 +338,33 @@
       box-shadow: none !important;
       border: none !important;
     }
-    .maplibregl-popup-tip {
-      display: none !important;
+    .maplibregl-popup-tip { display: none !important; }
+
+    /* ──────────────────────────────────────────
+       VESSEL DRAWER GLASS
+    ────────────────────────────────────────── */
+    #vesselDrawer {
+      background:
+        linear-gradient(
+          160deg,
+          rgba(255,255,255,0.88) 0%,
+          rgba(248,250,252,0.78) 100%
+        ) !important;
+      backdrop-filter: blur(28px) saturate(200%) !important;
+      -webkit-backdrop-filter: blur(28px) saturate(200%) !important;
+      border: 1px solid rgba(255,255,255,0.75) !important;
+      box-shadow:
+        0 24px 60px rgba(0,0,0,0.12),
+        0 4px 16px rgba(0,0,0,0.06),
+        inset 0 1px 0 rgba(255,255,255,0.95) !important;
     }
   </style>
 </head>
 <body class="h-screen w-screen flex flex-col font-sans select-none antialiased bg-[#F8F9FA]">
 
   <!-- TOP COMMAND CENTER NAVBAR (56px) -->
-  <header class="h-14 bg-[#EFEFEF]/95 backdrop-blur-xl border-b border-black/8 px-6 flex items-center justify-between shrink-0 z-40 relative">
+  <header class="h-14 bg-white/80 backdrop-blur-2xl border-b border-black/6 px-6 flex items-center justify-between shrink-0 z-40 relative" style="box-shadow: 0 1px 0 rgba(255,255,255,0.9) inset, 0 2px 12px rgba(0,0,0,0.05);">
+    <div class="navbar-accent"></div>
     
     <!-- Left Logo & Nav Tabs -->
     <div class="flex items-center space-x-7">
@@ -175,6 +417,7 @@
     </div>
   </header>
 
+
   <!-- MAIN MAP WORKSPACE -->
   <main class="flex-1 w-full h-full relative overflow-hidden flex">
     
@@ -185,155 +428,167 @@
     <div class="map-vignette"></div>
 
     <!-- FLOATING SURVEILLANCE OVERLAY CARD -->
-    <aside class="sidebar p-5 space-y-4 overflow-y-auto custom-scrollbar">
-      
-      <!-- OPERATIONAL VIEW SELECTOR -->
-      <div class="space-y-1 border-b border-black/8 pb-3">
+    <aside class="sidebar p-5 space-y-3.5 overflow-y-auto custom-scrollbar">
+
+      <!-- TOP: LOGO STRIP + OPERATIONAL VIEW SELECTOR -->
+      <div class="space-y-2 pb-3 fade-up">
         <div class="flex items-center justify-between">
-          <span class="text-[9px] font-mono font-bold text-neutral-500 uppercase tracking-widest">OPERATIONAL VIEW</span>
-          <select id="scenarioSelect" class="bg-white border border-black/10 text-[11px] font-semibold text-neutral-800 rounded-xl px-2 py-0.5 focus:outline-none cursor-pointer shadow-sm">
+          <span class="text-[9px] font-mono font-bold tracking-[0.14em] uppercase" style="color: rgba(0,0,0,0.38);">OPERATIONAL VIEW</span>
+          <select id="scenarioSelect" class="text-[11px] font-semibold text-neutral-800 rounded-xl px-2.5 py-1 focus:outline-none cursor-pointer" style="background: rgba(255,255,255,0.85); backdrop-filter: blur(12px); border: 1px solid rgba(0,0,0,0.09); box-shadow: 0 1px 4px rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,0.9);">
             <option value="scenario_beta_singapore_strait" selected>Singapore Strait (TSS)</option>
             <option value="scenario_alpha_rogue_tanker">Arabian Sea (Mumbai Outer)</option>
             <option value="scenario_gamma_lookalike">Bay of Bengal (Look-Alike)</option>
           </select>
         </div>
-
-        <h1 id="regionName" class="text-xl font-black tracking-tight text-neutral-900 pt-1">Singapore Strait</h1>
-        <h2 id="regionSubtitle" class="text-[11px] font-bold text-neutral-500 tracking-wide uppercase">Traffic Separation Scheme (TSS)</h2>
+        <h1 id="regionName" class="text-2xl font-black tracking-tight text-neutral-900 leading-none">Singapore Strait</h1>
+        <h2 id="regionSubtitle" class="text-[10px] font-bold tracking-[0.12em] uppercase" style="color: rgba(0,0,0,0.38);">Traffic Separation Scheme (TSS)</h2>
+        <div class="divider-gradient mt-1"></div>
       </div>
 
       <!-- HERO INCIDENT ALERT CARD -->
-      <div id="spillAlertBox" class="p-3.5 bg-rose-500/10 border border-rose-300 rounded-2xl space-y-1">
+      <div id="spillAlertBox" class="glass-alert p-3.5 rounded-2xl space-y-1 fade-up fade-up-d1">
         <div class="flex items-center justify-between">
-          <span class="text-[10px] font-mono font-extrabold uppercase text-rose-700 tracking-wider flex items-center">
-            <span class="w-2 h-2 rounded-full bg-rose-600 animate-ping mr-1.5"></span>
+          <span class="text-[10px] font-mono font-extrabold uppercase tracking-wider flex items-center gap-1.5" style="color: #B91C1C;">
+            <span class="relative flex w-2 h-2">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-75"></span>
+              <span class="relative inline-flex rounded-full w-2 h-2 bg-rose-600"></span>
+            </span>
             INCIDENT DETECTED
           </span>
-          <span class="px-2 py-0.5 text-[9px] font-mono font-bold rounded-full bg-rose-600 text-white">CRITICAL</span>
+          <span class="px-2 py-0.5 text-[9px] font-mono font-bold rounded-full text-white" style="background: linear-gradient(135deg, #DC2626, #B91C1C); box-shadow: 0 2px 8px rgba(220,38,38,0.35);">CRITICAL</span>
         </div>
         <div class="text-sm font-extrabold text-neutral-900">Confirmed Mineral Oil Spill</div>
-        <div class="text-[10px] text-neutral-600 font-mono">SAR Damping: 9.2 dB (High Contrast)</div>
+        <div class="text-[10px] font-mono" style="color: rgba(0,0,0,0.50);">SAR Damping: 9.2 dB · High Contrast Return</div>
       </div>
 
-      <!-- HERO NUMBERS (Instant Grasp Typography) -->
-      <div class="grid grid-cols-2 gap-2.5 pt-1">
-        
-        <!-- Hero Metric 1: Affected Area -->
-        <div class="bg-white/90 border border-black/8 p-3 rounded-2xl space-y-0.5 shadow-sm">
-          <span class="text-[10px] font-mono text-neutral-500 uppercase tracking-wider block">Affected Area</span>
-          <div id="slickArea" class="font-black text-rose-600 text-2xl leading-none">2.29 <span class="text-xs font-bold text-rose-800">km²</span></div>
+      <!-- HERO NUMBERS GRID -->
+      <div class="grid grid-cols-2 gap-2 fade-up fade-up-d2">
+        <div class="glass-card p-3.5 rounded-2xl space-y-1">
+          <span class="text-[9px] font-mono font-bold uppercase tracking-[0.12em] block" style="color: rgba(0,0,0,0.38);">Affected Area</span>
+          <div id="slickArea" class="font-black text-rose-600 text-2xl leading-none tracking-tight">2.29 <span class="text-[11px] font-bold" style="color: #9F1239;">km²</span></div>
+          <div class="text-[9px] font-mono" style="color: rgba(0,0,0,0.35);">+0.12 km²/h drift</div>
         </div>
-
-        <!-- Hero Metric 2: Estimated Volume -->
-        <div class="bg-white/90 border border-black/8 p-3 rounded-2xl space-y-0.5 shadow-sm">
-          <span class="text-[10px] font-mono text-neutral-500 uppercase tracking-wider block">Est. Volume</span>
-          <div id="slickVol" class="font-black text-amber-600 text-2xl leading-none">5.0 <span class="text-xs font-bold text-amber-800">m³</span></div>
+        <div class="glass-card p-3.5 rounded-2xl space-y-1">
+          <span class="text-[9px] font-mono font-bold uppercase tracking-[0.12em] block" style="color: rgba(0,0,0,0.38);">Est. Volume</span>
+          <div id="slickVol" class="font-black text-amber-600 text-2xl leading-none tracking-tight">5.0 <span class="text-[11px] font-bold" style="color: #92400E;">m³</span></div>
+          <div class="text-[9px] font-mono" style="color: rgba(0,0,0,0.35);">Mineral oil proxy</div>
         </div>
       </div>
 
-      <!-- AI Confidence Bar -->
-      <div class="bg-white/90 border border-black/8 p-3 rounded-2xl space-y-1.5 shadow-sm">
-        <div class="flex justify-between items-center text-xs">
-          <span class="text-neutral-500 font-mono text-[10px] uppercase font-bold">AI Model Confidence</span>
+      <!-- AI CONFIDENCE BAR -->
+      <div class="glass-card p-3.5 rounded-2xl space-y-2 fade-up fade-up-d3">
+        <div class="flex justify-between items-center">
+          <span class="text-[9px] font-mono font-bold uppercase tracking-[0.12em]" style="color: rgba(0,0,0,0.40);">AI Model Confidence</span>
           <span id="aiConfidenceText" class="font-mono text-base font-black text-neutral-900">99%</span>
         </div>
-        <div class="w-full h-2 bg-neutral-200 rounded-full overflow-hidden">
-          <div id="aiConfidenceBar" class="h-full bg-neutral-900 rounded-full transition-all duration-500" style="width: 99%"></div>
+        <div class="w-full h-2 rounded-full overflow-hidden confidence-bar" style="background: rgba(0,0,0,0.07);">
+          <div id="aiConfidenceBar" class="h-full rounded-full transition-all duration-700" style="width: 99%; background: linear-gradient(90deg, #1a1a1a 0%, #374151 50%, #111827 100%);"></div>
+        </div>
+        <div class="flex justify-between text-[9px] font-mono" style="color: rgba(0,0,0,0.30);">
+          <span>Low</span><span>Moderate</span><span>High</span><span>Critical</span>
         </div>
       </div>
 
-      <!-- Technical Matrix -->
-      <div class="space-y-1.5 text-[11px] font-mono pt-1 text-neutral-700 border-t border-black/8">
-        <div class="flex justify-between">
-          <span class="text-neutral-500">Sensor / Orbit:</span>
-          <span id="sarSensor" class="font-bold text-neutral-900">Sentinel-1B (C-Band)</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-neutral-500">Acquisition UTC:</span>
-          <span id="sarTime" class="font-bold text-neutral-900">04:15:00Z (7 Sep 2026)</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-neutral-500">Spatial Resolution:</span>
-          <span class="font-bold text-neutral-900">10.0 m / pixel</span>
-        </div>
-      </div>
-
-      <!-- Sidebar Tabs Switcher -->
-      <div class="flex items-center border-b border-black/10 text-xs font-bold gap-4 pt-1">
-        <button id="tabBtnOverview" class="text-neutral-900 border-b-2 border-neutral-900 pb-1.5 transition-all">Overview</button>
-        <button id="tabBtnVessel" class="text-neutral-400 hover:text-neutral-800 pb-1.5 transition-all">Vessels</button>
-        <button id="tabBtnPhysics" class="text-neutral-400 hover:text-neutral-800 pb-1.5 transition-all">Physics</button>
-      </div>
-
-      <!-- TAB 1: OVERVIEW & ACTION BUTTON -->
-      <div id="tabContentOverview" class="space-y-3">
-        <button id="btnDossier" class="w-full flex items-center justify-between p-3 bg-white hover:bg-neutral-50 border border-black/12 rounded-2xl text-xs font-bold text-neutral-900 shadow-sm transition-all hover:shadow active:scale-98">
-          <div class="flex items-center space-x-2">
-            <i data-lucide="file-text" class="w-4 h-4 text-rose-600"></i>
-            <span>Generate Forensic Dossier</span>
+      <!-- TECHNICAL MATRIX -->
+      <div class="glass-card p-3.5 rounded-2xl space-y-2 fade-up fade-up-d4">
+        <div class="text-[9px] font-mono font-bold uppercase tracking-[0.12em] pb-1 border-b" style="color: rgba(0,0,0,0.38); border-color: rgba(0,0,0,0.06);">SAR Acquisition Parameters</div>
+        <div class="space-y-1.5 text-[11px] font-mono text-neutral-700">
+          <div class="flex justify-between items-center">
+            <span style="color: rgba(0,0,0,0.42);">Sensor / Orbit</span>
+            <span id="sarSensor" class="font-bold text-neutral-900">Sentinel-1B (C-Band)</span>
           </div>
-          <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-neutral-600"></i>
+          <div class="flex justify-between items-center">
+            <span style="color: rgba(0,0,0,0.42);">Acquisition UTC</span>
+            <span id="sarTime" class="font-bold text-neutral-900">04:15:00Z</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span style="color: rgba(0,0,0,0.42);">Spatial Resolution</span>
+            <span class="font-bold text-neutral-900">10.0 m / px</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- SIDEBAR TABS -->
+      <div class="flex items-center text-xs font-bold gap-5 pt-0.5 fade-up fade-up-d5" style="border-bottom: 1px solid rgba(0,0,0,0.08);">
+        <button id="tabBtnOverview" class="tab-btn active text-neutral-900 pb-2 transition-all">Overview</button>
+        <button id="tabBtnVessel"   class="tab-btn text-neutral-400 hover:text-neutral-700 pb-2 transition-all">Vessels</button>
+        <button id="tabBtnPhysics"  class="tab-btn text-neutral-400 hover:text-neutral-700 pb-2 transition-all">Physics</button>
+      </div>
+
+      <!-- TAB 1: OVERVIEW -->
+      <div id="tabContentOverview" class="space-y-2.5">
+        <button id="btnDossier" class="btn-premium w-full flex items-center justify-between p-3.5 rounded-2xl text-xs font-bold text-neutral-900" style="background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.85) 100%); border: 1px solid rgba(255,255,255,0.80); box-shadow: 0 4px 16px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,1);">
+          <div class="flex items-center space-x-2.5">
+            <div class="w-7 h-7 rounded-xl flex items-center justify-center" style="background: linear-gradient(135deg, #FEF2F2, #FECACA); border: 1px solid rgba(239,68,68,0.20);">
+              <i data-lucide="file-text" class="w-3.5 h-3.5 text-rose-600"></i>
+            </div>
+            <div class="text-left">
+              <div>Generate Forensic Dossier</div>
+              <div class="text-[9px] font-mono font-normal" style="color: rgba(0,0,0,0.40);">MARPOL Annex I · PDF ready</div>
+            </div>
+          </div>
+          <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-neutral-400"></i>
         </button>
       </div>
 
-      <!-- TAB 2: CULPRIT VESSEL LEADERBOARD -->
+      <!-- TAB 2: CULPRIT VESSELS -->
       <div id="tabContentVessel" class="space-y-2 hidden">
         <div class="flex items-center justify-between text-[11px] font-mono">
           <span class="font-bold text-neutral-800">AIS Attribution</span>
-          <span id="vesselCountBadge" class="px-2 py-0.5 bg-neutral-100 rounded text-neutral-600 font-bold">3 Vessels</span>
+          <span id="vesselCountBadge" class="px-2 py-0.5 rounded-lg font-bold text-neutral-600" style="background: rgba(0,0,0,0.06);">3 Vessels</span>
         </div>
-        <div id="culpritList" class="space-y-2 max-h-48 overflow-y-auto custom-scrollbar"></div>
+        <div id="culpritList" class="space-y-2 max-h-52 overflow-y-auto custom-scrollbar"></div>
       </div>
 
-      <!-- TAB 3: INTERACTIVE PHYSICS & WEATHERING CHARTS -->
+      <!-- TAB 3: PHYSICS & WEATHERING -->
       <div id="tabContentPhysics" class="space-y-3 hidden">
-        
-        <!-- Interactive 72h Weathering Curves (SVG Sparkline Gauges) -->
-        <div class="bg-white/90 border border-black/8 p-3 rounded-2xl space-y-2.5 shadow-sm">
-          <div class="text-[10px] font-mono uppercase font-bold text-neutral-500 flex items-center justify-between border-b border-black/6 pb-1">
-            <span>Petroleum Weathering Curves (72h)</span>
+        <div class="glass-card p-3.5 rounded-2xl space-y-3">
+          <div class="text-[9px] font-mono uppercase font-bold tracking-[0.12em] flex items-center justify-between pb-1.5 border-b" style="color: rgba(0,0,0,0.38); border-color: rgba(0,0,0,0.07);">
+            <span>Petroleum Weathering Curves · 72h</span>
             <i data-lucide="activity" class="w-3 h-3 text-amber-500"></i>
           </div>
-
-          <!-- Gauge 1: Evaporation -->
+          <!-- Gauge 1 -->
           <div class="space-y-1">
             <div class="flex justify-between text-[10px] font-mono">
-              <span class="text-neutral-600">Evaporation Lost:</span>
+              <span style="color: rgba(0,0,0,0.45);">Evaporation Lost</span>
               <span class="font-bold text-amber-600">35.4%</span>
             </div>
-            <svg class="w-full h-4" viewBox="0 0 100 20">
-              <path d="M0,18 Q25,12 50,7 T100,3" fill="none" stroke="#D97706" stroke-width="2.5" />
+            <svg class="w-full h-5" viewBox="0 0 100 20">
+              <defs><linearGradient id="g1" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#D97706" stop-opacity="0.3"/><stop offset="100%" stop-color="#D97706" stop-opacity="0"/></linearGradient></defs>
+              <path d="M0,18 Q25,12 50,7 T100,3" fill="url(#g1)" />
+              <path d="M0,18 Q25,12 50,7 T100,3" fill="none" stroke="#D97706" stroke-width="2" stroke-linecap="round"/>
             </svg>
           </div>
-
-          <!-- Gauge 2: Mousse Emulsification -->
+          <!-- Gauge 2 -->
           <div class="space-y-1">
             <div class="flex justify-between text-[10px] font-mono">
-              <span class="text-neutral-600">Water Emulsification:</span>
+              <span style="color: rgba(0,0,0,0.45);">Water Emulsification</span>
               <span class="font-bold text-blue-600">77.5%</span>
             </div>
-            <svg class="w-full h-4" viewBox="0 0 100 20">
-              <path d="M0,19 Q30,15 60,6 T100,2" fill="none" stroke="#2563EB" stroke-width="2.5" />
+            <svg class="w-full h-5" viewBox="0 0 100 20">
+              <defs><linearGradient id="g2" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#2563EB" stop-opacity="0.3"/><stop offset="100%" stop-color="#2563EB" stop-opacity="0"/></linearGradient></defs>
+              <path d="M0,19 Q30,15 60,6 T100,2" fill="url(#g2)" />
+              <path d="M0,19 Q30,15 60,6 T100,2" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round"/>
             </svg>
           </div>
-
-          <!-- Gauge 3: Viscosity Swelling -->
+          <!-- Gauge 3 -->
           <div class="space-y-1">
             <div class="flex justify-between text-[10px] font-mono">
-              <span class="text-neutral-600">Dynamic Viscosity:</span>
+              <span style="color: rgba(0,0,0,0.45);">Dynamic Viscosity</span>
               <span class="font-bold text-rose-600">12,400 cP</span>
             </div>
-            <svg class="w-full h-4" viewBox="0 0 100 20">
-              <path d="M0,18 L30,16 L60,10 L100,2" fill="none" stroke="#DC2626" stroke-width="2.5" />
+            <svg class="w-full h-5" viewBox="0 0 100 20">
+              <defs><linearGradient id="g3" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#DC2626" stop-opacity="0.3"/><stop offset="100%" stop-color="#DC2626" stop-opacity="0"/></linearGradient></defs>
+              <path d="M0,18 L30,16 L60,10 L100,2" fill="url(#g3)" />
+              <path d="M0,18 L30,16 L60,10 L100,2" fill="none" stroke="#DC2626" stroke-width="2" stroke-linecap="round"/>
             </svg>
           </div>
         </div>
-
-        <button id="btnForwardDrift" class="w-full py-2 bg-neutral-900 text-white rounded-xl text-xs font-bold shadow hover:bg-neutral-800 transition-all flex items-center justify-center space-x-2">
+        <button id="btnForwardDrift" class="btn-premium w-full py-2.5 text-white rounded-2xl text-xs font-bold flex items-center justify-center space-x-2" style="background: linear-gradient(135deg, #111827, #1F2937); box-shadow: 0 4px 16px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.08);">
           <i data-lucide="compass" class="w-3.5 h-3.5 text-purple-400"></i>
           <span>Simulate 72h Shoreline Drift</span>
         </button>
-        <button id="btnGeoTIFF" class="w-full py-2 bg-blue-600 text-white rounded-xl text-xs font-bold shadow hover:bg-blue-500 transition-all flex items-center justify-center space-x-2">
+        <button id="btnGeoTIFF" class="btn-premium w-full py-2.5 text-white rounded-2xl text-xs font-bold flex items-center justify-center space-x-2" style="background: linear-gradient(135deg, #1D4ED8, #2563EB); box-shadow: 0 4px 16px rgba(37,99,235,0.30), inset 0 1px 0 rgba(255,255,255,0.12);">
           <i data-lucide="scan" class="w-3.5 h-3.5"></i>
           <span>Run GeoTIFF + CFAR Pipeline</span>
         </button>
@@ -397,41 +652,44 @@
     </div>
 
     <!-- FLOATING BOTTOM LEFT LIVE BADGE -->
-    <div class="absolute bottom-4 left-4 z-20 glass-pill-sleek px-3.5 py-2 rounded-2xl shadow-md flex items-center space-x-2 text-xs font-sans pointer-events-auto">
-      <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-      <span class="font-bold text-neutral-900">Live AIS Feed:</span>
-      <span class="text-neutral-600 font-semibold">342 vessels</span>
+    <div class="absolute bottom-4 left-4 z-20 glass-pill-sleek px-3.5 py-2 rounded-2xl flex items-center space-x-2 text-xs font-sans pointer-events-auto" style="animation: fadeUp 0.6s 0.3s cubic-bezier(0.22,1,0.36,1) both;">
+      <span class="relative flex w-2 h-2">
+        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-70"></span>
+        <span class="relative inline-flex rounded-full w-2 h-2 bg-emerald-500"></span>
+      </span>
+      <span class="font-bold text-neutral-900">Live AIS Feed</span>
+      <span class="w-px h-3" style="background: rgba(0,0,0,0.12);"></span>
+      <span class="font-mono font-bold text-emerald-700">342 vessels</span>
     </div>
 
     <!-- MISSION REPLAY SCRUBBER TIMELINE -->
-    <div class="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 glass-pill-sleek rounded-full px-6 py-2.5 shadow-2xl flex items-center space-x-5 pointer-events-auto w-[520px] max-w-[90vw]">
-      
+    <div class="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 glass-pill-sleek rounded-2xl px-5 py-3 flex items-center space-x-4 pointer-events-auto" style="width: 520px; max-width: 90vw; animation: fadeUp 0.6s 0.2s cubic-bezier(0.22,1,0.36,1) both;">
+
       <!-- Play/Pause Button -->
-      <button id="btnPlayDrift" class="w-8.5 h-8.5 rounded-full bg-neutral-900 hover:bg-neutral-800 text-white flex items-center justify-center shrink-0 shadow transition-transform active:scale-95">
+      <button id="btnPlayDrift" class="btn-premium w-8 h-8 rounded-xl text-white flex items-center justify-center shrink-0" style="background: linear-gradient(135deg, #111827, #374151); box-shadow: 0 4px 12px rgba(0,0,0,0.20), inset 0 1px 0 rgba(255,255,255,0.08);">
         <i data-lucide="play" id="playIcon" class="w-3.5 h-3.5 fill-white ml-0.5"></i>
       </button>
 
       <!-- Label block -->
-      <div class="flex flex-col shrink-0">
-        <span class="text-[9px] font-mono text-neutral-400 font-bold uppercase tracking-wider">Mission Replay Scrubber</span>
-        <span id="currentTimeLabel" class="text-xs font-mono font-black text-neutral-900">06:00 UTC (Detection Pass)</span>
+      <div class="flex flex-col shrink-0 min-w-[120px]">
+        <span class="text-[8px] font-mono font-bold uppercase tracking-[0.12em]" style="color: rgba(0,0,0,0.35);">Mission Replay</span>
+        <span id="currentTimeLabel" class="text-[11px] font-mono font-black text-neutral-900 leading-tight">06:00 UTC · Detection Pass</span>
       </div>
 
-      <!-- Step Markers Timeline Track -->
-      <div class="flex-1 flex flex-col justify-center space-y-1">
-        <input 
-          type="range" 
-          id="timeSlider" 
-          min="0" 
-          max="100" 
-          value="100" 
-          class="w-full accent-neutral-900 bg-neutral-200 h-1.5 rounded-lg cursor-pointer"
+      <!-- Divider -->
+      <div class="w-px h-8 shrink-0" style="background: rgba(0,0,0,0.08);"></div>
+
+      <!-- Slider track -->
+      <div class="flex-1 flex flex-col justify-center space-y-1.5">
+        <input
+          type="range"
+          id="timeSlider"
+          min="0" max="100" value="100"
+          class="w-full cursor-pointer"
+          style="accent-color: #111827; height: 4px;"
         />
-        <div class="flex justify-between text-[9px] font-mono text-neutral-400 font-bold px-0.5">
-          <span>01:30</span>
-          <span>03:00</span>
-          <span>04:15</span>
-          <span>06:00 UTC</span>
+        <div class="flex justify-between text-[8px] font-mono font-bold px-0.5" style="color: rgba(0,0,0,0.30);">
+          <span>01:30</span><span>03:00</span><span>04:15</span><span>06:00Z</span>
         </div>
       </div>
     </div>
@@ -677,12 +935,18 @@
 
     function switchTab(activeBtn, activeContent) {
       [tabBtnOverview, tabBtnVessel, tabBtnPhysics].forEach(b => {
-        b.className = "text-neutral-400 hover:text-neutral-800 pb-1.5 transition-all";
+        b.classList.remove('active', 'text-neutral-900');
+        b.classList.add('text-neutral-400');
       });
       [tabContentOverview, tabContentVessel, tabContentPhysics].forEach(c => c.classList.add('hidden'));
 
-      activeBtn.className = "text-neutral-900 border-b-2 border-neutral-900 pb-1.5 transition-all font-bold";
+      activeBtn.classList.add('active', 'text-neutral-900');
+      activeBtn.classList.remove('text-neutral-400');
       activeContent.classList.remove('hidden');
+      // Animate content in
+      activeContent.style.animation = 'none';
+      activeContent.offsetHeight; // reflow
+      activeContent.style.animation = 'fadeUp 0.3s cubic-bezier(0.22,1,0.36,1) both';
     }
 
     tabBtnOverview.addEventListener('click', () => switchTab(tabBtnOverview, tabContentOverview));
@@ -1302,11 +1566,11 @@
 
     function updateSliderTime(val) {
       if (!currentScenarioData) return;
-      
-      let stepTime = "06:00 UTC (Detection Pass)";
-      if (val < 25) stepTime = "01:30 UTC (Initial Transit)";
-      else if (val < 50) stepTime = "03:00 UTC (Discharge Event)";
-      else if (val < 75) stepTime = "04:15 UTC (SAR Acquisition)";
+
+      let stepTime = "06:00 UTC · Detection Pass";
+      if (val < 25) stepTime = "01:30 UTC · Initial Transit";
+      else if (val < 50) stepTime = "03:00 UTC · Discharge Event";
+      else if (val < 75) stepTime = "04:15 UTC · SAR Acquisition";
 
       currentTimeLabel.textContent = stepTime;
       if (currentScenarioData) {
