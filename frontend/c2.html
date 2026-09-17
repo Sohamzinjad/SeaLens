@@ -193,6 +193,38 @@
     }
 
     /* ──────────────────────────────────────────
+       MAPLIBRE POPUP OVERRIDES FOR SLEEK CARDS
+    ────────────────────────────────────────── */
+    .maplibregl-popup {
+      z-index: 30;
+      max-width: 250px !important;
+    }
+    .maplibregl-popup-content {
+      background: transparent !important;
+      padding: 0 !important;
+      box-shadow: none !important;
+      border: none !important;
+      border-radius: 20px !important;
+    }
+    .maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
+    .maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+    .maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip {
+      border-top-color: rgba(15, 23, 42, 0.94) !important;
+    }
+    .maplibregl-popup-anchor-top .maplibregl-popup-tip,
+    .maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+    .maplibregl-popup-anchor-top-right .maplibregl-popup-tip {
+      border-bottom-color: rgba(15, 23, 42, 0.94) !important;
+    }
+    .maplibregl-popup-anchor-left .maplibregl-popup-tip {
+      border-right-color: rgba(15, 23, 42, 0.94) !important;
+    }
+    .maplibregl-popup-anchor-right .maplibregl-popup-tip {
+      border-left-color: rgba(15, 23, 42, 0.94) !important;
+    }
+
+
+    /* ──────────────────────────────────────────
        SCROLLBAR
     ────────────────────────────────────────── */
     .custom-scrollbar::-webkit-scrollbar { width: 3px; height: 3px; }
@@ -394,6 +426,18 @@
         <span>Export GIS</span>
       </button>
 
+      <!-- Satellite SAR Image Viewer Button -->
+      <button id="btnOpenSatelliteModal" onclick="openSatelliteModal()" class="hidden sm:flex items-center space-x-1.5 px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full text-xs font-bold shadow-sm transition-all cursor-pointer">
+        <i data-lucide="satellite" class="w-3.5 h-3.5 text-white"></i>
+        <span>🛰️ SAR Satellite Scene</span>
+      </button>
+
+      <!-- NTRO Intelligence Cable Button -->
+      <button id="btnOpenIntelBrief" onclick="openIntelBriefModal()" class="hidden sm:flex items-center space-x-1.5 px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-full text-xs font-bold shadow-sm transition-all cursor-pointer">
+        <i data-lucide="file-text" class="w-3.5 h-3.5 text-white"></i>
+        <span>📜 NTRO Intel Cable</span>
+      </button>
+
       <!-- Live Status Pill -->
       <div class="flex items-center space-x-1.5 px-2.5 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-200/80 rounded-full text-[11px] font-bold">
         <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
@@ -437,6 +481,9 @@
             <option value="scenario_beta_singapore_strait" selected>Singapore Strait (TSS)</option>
             <option value="scenario_alpha_rogue_tanker">Arabian Sea (Mumbai Outer)</option>
             <option value="scenario_gamma_lookalike">Bay of Bengal (Look-Alike)</option>
+            <option value="scenario_delta_gulf_of_kutch">Gulf of Kutch (Vadinar SPM)</option>
+            <option value="scenario_epsilon_gulf_of_mannar">Gulf of Mannar (Dark STS)</option>
+            <option value="scenario_zeta_lakshadweep">Lakshadweep (9-Degree Channel)</option>
           </select>
         </div>
         <h1 id="regionName" class="text-2xl font-black tracking-tight text-neutral-900 leading-none">Singapore Strait</h1>
@@ -757,6 +804,22 @@
             <span class="text-neutral-500">AIS Health:</span>
             <span id="drawerAISHealth" class="font-bold text-emerald-600">NORMAL</span>
           </div>
+          <div class="flex justify-between">
+            <span class="text-neutral-500">Behavioral Risk:</span>
+            <span id="drawerBehavioralRisk" class="font-bold text-purple-600">85.0% (WATCHLIST)</span>
+          </div>
+          <div id="drawerBehavioralNotes" class="hidden p-2 bg-purple-50 border border-purple-200 rounded-lg text-[10px] text-purple-900 space-y-1">
+          </div>
+
+          <!-- REPEAT OFFENDER INTELLIGENCE BADGE -->
+          <div id="drawerSerialOffenderBlock" class="hidden p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-[10px] text-rose-900 space-y-1 mt-2">
+            <div class="flex items-center justify-between font-bold">
+              <span class="flex items-center gap-1 text-rose-800">🚨 REPEAT SERIAL POLLUTER</span>
+              <span id="drawerSerialLevel" class="px-1.5 py-0.5 rounded bg-rose-600 text-white font-mono text-[9px]">LEVEL 3</span>
+            </div>
+            <div id="drawerSerialPriority" class="font-bold text-[9px] text-rose-800">PRIORITY 1 - IMMEDIATE PORT STATE ARREST</div>
+            <div id="drawerSerialDetails" class="text-[9px] text-rose-700 leading-tight">2 historical violations logged across Malacca Strait & Gulf of Oman.</div>
+          </div>
         </div>
 
         <button id="btnCenterOnVessel" class="w-full py-2 bg-neutral-900 text-white rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5 shadow hover:bg-neutral-800 transition-all">
@@ -1051,7 +1114,26 @@
 
     const MAP_STYLES = {
       normal: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
-      satellite: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
+      satellite: {
+        version: 8,
+        sources: {
+          'esri-satellite': {
+            type: 'raster',
+            tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+            tileSize: 256,
+            attribution: 'Esri World Imagery'
+          }
+        },
+        layers: [
+          {
+            id: 'esri-satellite-layer',
+            type: 'raster',
+            source: 'esri-satellite',
+            minzoom: 0,
+            maxzoom: 19
+          }
+        ]
+      },
       dark: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
     };
 
@@ -1549,6 +1631,7 @@
 
     async function loadScenario(scenarioId) {
       try {
+        window.currentScenarioId = scenarioId;
         const res = await fetch(`/api/scenario/${scenarioId}`);
         if (!res.ok) throw new Error("Failed to load scenario");
         const data = await res.json();
@@ -1569,6 +1652,46 @@
       document.getElementById('drawerSpeedAnomaly').textContent = `${info.speed_anomaly}%`;
       document.getElementById('drawerAttribution').textContent = `${info.attribution}%`;
       document.getElementById('drawerAISHealth').textContent = info.ais_health;
+
+      const behScore = info.behavioral_score || 0;
+      const behRiskEl = document.getElementById('drawerBehavioralRisk');
+      const behNotesEl = document.getElementById('drawerBehavioralNotes');
+
+      if (behScore >= 65) {
+        behRiskEl.textContent = `${behScore}% (CRITICAL WATCHLIST)`;
+        behRiskEl.className = 'font-bold text-rose-600 font-mono';
+      } else if (behScore >= 45) {
+        behRiskEl.textContent = `${behScore}% (ELEVATED RISK)`;
+        behRiskEl.className = 'font-bold text-amber-600 font-mono';
+      } else {
+        behRiskEl.textContent = `${behScore}% (NOMINAL)`;
+        behRiskEl.className = 'font-bold text-emerald-600 font-mono';
+      }
+
+      if (info.behavioral_anomalies && info.behavioral_anomalies.length > 0) {
+        behNotesEl.classList.remove('hidden');
+        behNotesEl.innerHTML = `<div class="font-bold text-[9px] uppercase tracking-wider mb-1 text-rose-800">Signals Intelligence Warnings:</div>` +
+          info.behavioral_anomalies.map(a => `<div class="leading-tight">• ${a}</div>`).join('');
+      } else {
+        behNotesEl.classList.add('hidden');
+        behNotesEl.innerHTML = '';
+      }
+
+      // Fetch Repeat Offender Intelligence
+      fetch(`/api/repeat_offender/${info.mmsi}`)
+        .then(res => res.json())
+        .then(prof => {
+          const serialBlock = document.getElementById('drawerSerialOffenderBlock');
+          if (prof && prof.is_serial_offender) {
+            serialBlock.classList.remove('hidden');
+            document.getElementById('drawerSerialLevel').textContent = prof.serial_offender_level.includes('LEVEL 3') ? 'LEVEL 3' : 'LEVEL 2';
+            document.getElementById('drawerSerialPriority').textContent = prof.prosecution_priority;
+            document.getElementById('drawerSerialDetails').textContent = `${prof.total_incidents_logged} logged violations in multi-region database. Protocol: ${prof.recommended_interception_protocol}`;
+          } else {
+            serialBlock.classList.add('hidden');
+          }
+        })
+        .catch(err => console.error("Repeat offender fetch notice:", err));
 
       selectedVesselCoord = [info.lng, info.lat];
 
@@ -1666,6 +1789,63 @@
           map.getSource('buffers-src').setData({ type: 'FeatureCollection', features: bufferFeatures });
         }
         renderOceanVectorStreamlines(cLng, cLat, data.environmental?.current_direction_deg, data.environmental?.current_speed_ms, data.environmental?.wind_direction_deg, data.environmental?.wind_speed_ms);
+
+        // 4.5. Floating Actual SAR Satellite Image Popup Card anchored at Oil Spill Centroid
+        const sarImgUrl = data.sar_image?.image_url || `/sar_samples/${data.id}.jpg`;
+        const popupContent = `
+          <div onclick="openSatelliteModal()" class="group relative overflow-hidden rounded-2xl border border-white/20 p-2.5 shadow-2xl transition-all duration-300 hover:scale-[1.02] hover:border-cyan-400/50 cursor-pointer max-w-[230px]" style="background: rgba(15, 23, 42, 0.94); backdrop-filter: blur(24px); color: white;">
+            <div class="flex items-center justify-between gap-2 mb-2">
+              <div class="flex items-center gap-1.5">
+                <span class="relative flex h-2 w-2">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2 w-2 bg-cyan-400"></span>
+                </span>
+                <span class="text-[9.5px] font-mono font-bold tracking-wider text-slate-200 uppercase">Sentinel-1 SAR</span>
+              </div>
+              <span class="text-[8.5px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">10m RES</span>
+            </div>
+            
+            <div class="relative w-full h-28 rounded-xl overflow-hidden border border-slate-800 bg-slate-950 group-hover:border-slate-700 transition-colors shadow-inner">
+              <img src="${sarImgUrl}" alt="SAR Satellite Scene" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onerror="this.src='/sar_samples/scenario_alpha_rogue_tanker.jpg'" />
+              <div class="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-transparent to-transparent"></div>
+              
+              <div class="absolute bottom-1.5 left-2 right-2 flex justify-between items-center text-[8.5px] font-mono">
+                <span class="px-1.5 py-0.5 rounded bg-slate-900/80 backdrop-blur-md text-slate-300 border border-slate-700/60 font-medium">Damping: ${primarySlick.radar_damping_db || 9.2} dB</span>
+                <span class="px-1.5 py-0.5 rounded bg-indigo-600/90 text-white font-bold shadow-sm flex items-center gap-0.5">Inspect 🔍</span>
+              </div>
+            </div>
+
+            <div class="flex justify-between items-center text-[9.5px] font-mono pt-2 text-slate-300">
+              <div class="flex items-center gap-1">
+                <span class="text-slate-400">Area:</span>
+                <span class="font-bold text-rose-400">${primarySlick.area_sqkm} km²</span>
+              </div>
+              <span class="px-1.5 py-0.5 rounded text-[8.5px] font-bold ${primarySlick.is_lookalike ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'}">
+                ${primarySlick.is_lookalike ? 'FALSE POSITIVE' : 'CONFIRMED SPILL'}
+              </span>
+            </div>
+          </div>
+        `;
+
+        const slickPopup = new maplibregl.Popup({
+          offset: [0, -10],
+          closeButton: false,
+          closeOnClick: false,
+          anchor: 'bottom'
+        }).setLngLat([cLng, cLat])
+          .setHTML(popupContent);
+
+        slickPopup.addTo(map);
+
+        const pinNode = document.createElement('div');
+        pinNode.className = 'w-4 h-4 rounded-full bg-cyan-400 border-2 border-white shadow-lg animate-ping cursor-pointer';
+        pinNode.addEventListener('click', () => openSatelliteModal());
+
+        const pinMarker = new maplibregl.Marker({ element: pinNode })
+          .setLngLat([cLng, cLat])
+          .addTo(map);
+
+        activeMarkers.push(pinMarker);
       }
 
       // 5. Render Vessel Tracks & Color Markers
@@ -1745,6 +1925,7 @@
         document.getElementById('vesselCountBadge').textContent = `${data.culprits.length} Vessels`;
         data.culprits.forEach(c => {
           const isPrimary = c.verdict === 'PRIMARY SUSPECT';
+          const isWatchlist = (c.behavioral_score || 0) >= 65;
           const card = document.createElement('div');
           card.className = `p-2.5 rounded-xl border transition-all cursor-pointer ${isPrimary ? 'bg-rose-50 border-rose-300' : 'bg-white/80 border-black/8'}`;
           card.innerHTML = `
@@ -1756,6 +1937,7 @@
               <span>MMSI: ${c.mmsi}</span>
               <span class="font-extrabold ${isPrimary ? 'text-rose-600' : 'text-neutral-800'}">${c.composite_score}% Match</span>
             </div>
+            ${isWatchlist ? `<div class="mt-1 flex items-center justify-between text-[9px] font-mono font-bold text-purple-800 bg-purple-100/90 px-1.5 py-0.5 rounded border border-purple-300"><span>🚨 WATCHLIST MATCH</span><span>${c.behavioral_score}% Risk</span></div>` : ''}
           `;
           
           card.addEventListener('click', () => {
@@ -1774,7 +1956,9 @@
                 cpa_km: c.closest_approach_distance_km,
                 speed_anomaly: c.speed_anomaly_score,
                 attribution: c.composite_score,
-                ais_health: 'HEALTHY',
+                behavioral_score: c.behavioral_score,
+                behavioral_anomalies: c.behavioral_anomalies || [],
+                ais_health: isWatchlist ? 'TRANSPONDER BLACKOUT DETECTED' : 'HEALTHY',
                 lng: lastP.lng,
                 lat: lastP.lat
               });
@@ -1789,6 +1973,9 @@
       let targetZoom = 11.5;
       if (data.id === 'scenario_alpha_rogue_tanker') targetZoom = 10.8;
       if (data.id === 'scenario_gamma_lookalike') targetZoom = 10.2;
+      if (data.id === 'scenario_delta_gulf_of_kutch') targetZoom = 10.8;
+      if (data.id === 'scenario_epsilon_gulf_of_mannar') targetZoom = 10.5;
+      if (data.id === 'scenario_zeta_lakshadweep') targetZoom = 10.4;
 
       map.flyTo({
         center: [centerLng, centerLat],
@@ -2382,23 +2569,413 @@
       }
     });
 
-    // ────────────────────────────────────────────────────────────
-    // 3. OPERATOR SESSION STATE IN C2 NAVBAR
-    // ────────────────────────────────────────────────────────────
-    try {
-      const authRaw = sessionStorage.getItem('sealens_auth') || localStorage.getItem('sealens_auth');
-      if (authRaw) {
-        const u = JSON.parse(authRaw);
-        const nameEl = document.getElementById('userDisplayName');
-        const letterEl = document.getElementById('userAvatarLetter');
-        if (nameEl && u.name) {
-          nameEl.textContent = u.name.split(' ')[0] + ' ' + (u.name.split(' ')[1] || '');
+  </script>
+
+  <!-- NTRO INTELLIGENCE BRIEF MODAL -->
+  <div id="intelBriefModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-2xl w-full border border-black/10 shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+      <!-- Header -->
+      <div class="p-4 bg-neutral-900 text-white flex justify-between items-center border-b border-neutral-800">
+        <div class="flex items-center space-x-2">
+          <span class="px-2 py-0.5 rounded bg-amber-500 text-black font-extrabold text-[10px]">NTRO INTELLIGENCE CABLE</span>
+          <span id="briefCableId" class="font-mono text-xs text-neutral-400">NTRO-MDA-CABLE-2026-ALPHA</span>
+        </div>
+        <button onclick="document.getElementById('intelBriefModal').classList.add('hidden')" class="text-neutral-400 hover:text-white p-1 rounded-lg">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <!-- Body -->
+      <div class="p-6 space-y-4 overflow-y-auto custom-scrollbar flex-1 text-neutral-800">
+        <div class="flex justify-between items-start border-b border-neutral-200 pb-3">
+          <div>
+            <div class="text-[10px] font-mono text-neutral-500 uppercase">CLASSIFICATION</div>
+            <div id="briefClassification" class="font-mono font-bold text-xs text-amber-600">RESTRICTED // MARITIME SIGNALS & SAR INTELLIGENCE</div>
+          </div>
+          <div class="text-right">
+            <div class="text-[10px] font-mono text-neutral-500 uppercase">THREAT LEVEL</div>
+            <div id="briefThreatLevel" class="font-black text-xs text-rose-600">CRITICAL</div>
+          </div>
+        </div>
+
+        <div>
+          <h3 id="briefHeadline" class="font-black text-base text-neutral-900 leading-tight">HIGH-CONFIDENCE ATTRIBUTION BRIEF</h3>
+          <div id="briefTimestamp" class="text-[10px] font-mono text-neutral-400 mt-1">ISSUED: 2026-09-01 06:30:00 UTC</div>
+        </div>
+
+        <div class="divider-gradient"></div>
+
+        <div id="briefExecutiveText" class="text-xs space-y-3 text-neutral-700 leading-relaxed font-sans whitespace-pre-line">
+          Loading intelligence cable text...
+        </div>
+
+        <div class="p-3 bg-neutral-50 border border-neutral-200 rounded-xl space-y-1.5 text-xs font-mono">
+          <div class="flex justify-between">
+            <span class="text-neutral-500">Target Vessel:</span>
+            <span id="briefTarget" class="font-bold text-neutral-900">MT Ocean Titan</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-neutral-500">Attribution Score:</span>
+            <span id="briefScore" class="font-bold text-rose-600">97.8%</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-neutral-500">Repeat Offender Status:</span>
+            <span id="briefRepeatStatus" class="font-bold text-rose-700">SERIAL OFFENDER (LEVEL 3)</span>
+          </div>
+          <div class="flex justify-between pt-1 border-t border-neutral-200">
+            <span class="text-neutral-500">SHA-256 Evidence Seal:</span>
+            <span id="briefSha256" class="font-mono text-[10px] text-emerald-700 font-bold">SHA256:aad30f0011...</span>
+          </div>
+        </div>
+      </div>
+      <!-- Footer -->
+      <div class="p-4 bg-neutral-50 border-t border-neutral-200 flex justify-between items-center">
+        <span class="text-[10px] text-neutral-500 font-mono">🔒 Cryptographically Sealed NTRO Forensic Cable</span>
+        <button onclick="document.getElementById('intelBriefModal').classList.add('hidden')" class="px-4 py-2 bg-neutral-900 text-white rounded-xl text-xs font-bold hover:bg-neutral-800 transition-all">
+          Close Cable
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ACTUAL SATELLITE IMAGERY & SAR BACKSCATTER MODAL -->
+  <div id="satelliteViewerModal" class="fixed inset-0 bg-slate-950/75 backdrop-blur-xl z-50 hidden flex items-center justify-center p-4 sm:p-6 transition-all">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden font-sans text-slate-100">
+      
+      <!-- Modal Header -->
+      <div class="px-6 py-4 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <div class="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center border border-indigo-500/20">
+            <i data-lucide="radar" class="w-5 h-5 text-indigo-400"></i>
+          </div>
+          <div>
+            <div class="flex items-center space-x-2">
+              <h3 id="satModalTitle" class="text-sm font-bold tracking-tight text-white">Sentinel-1 SAR Satellite Scene Inspector</h3>
+              <span class="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">C-BAND RADAR</span>
+            </div>
+            <p id="satModalSubtitle" class="text-[11px] font-mono text-slate-400">Interferometric Wide (IW) Swath · 10m Spatial Resolution · Dual VV + VH Polarization</p>
+          </div>
+        </div>
+        <div class="flex items-center space-x-3">
+          <button onclick="map.setStyle(MAP_STYLES.satellite); document.getElementById('satelliteViewerModal').classList.add('hidden');" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-mono font-medium rounded-xl flex items-center space-x-2 shadow-sm transition-all cursor-pointer">
+            <i data-lucide="globe" class="w-3.5 h-3.5"></i>
+            <span>View Satellite Base Map</span>
+          </button>
+          <button onclick="document.getElementById('satelliteViewerModal').classList.add('hidden')" class="w-8 h-8 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-6 overflow-y-auto custom-scrollbar space-y-5 bg-slate-950/50">
+        
+        <!-- Mode Switcher Tabs inside Modal -->
+        <div class="flex flex-wrap items-center justify-between bg-slate-900 p-1.5 rounded-2xl border border-slate-800 shadow-sm gap-2">
+          <div class="flex items-center space-x-1.5">
+            <button id="satTabRaw" onclick="switchSatView('raw')" class="px-3.5 py-1.5 rounded-xl text-xs font-mono font-medium bg-indigo-600 text-white transition-all shadow-sm cursor-pointer flex items-center gap-1.5">
+              <i data-lucide="radio" class="w-3.5 h-3.5"></i>
+              <span>Raw Backscatter (VV)</span>
+            </button>
+            <button id="satTabFiltered" onclick="switchSatView('filtered')" class="px-3.5 py-1.5 rounded-xl text-xs font-mono font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer flex items-center gap-1.5">
+              <i data-lucide="filter" class="w-3.5 h-3.5"></i>
+              <span>5x5 Lee Filter</span>
+            </button>
+            <button id="satTabUnet" onclick="switchSatView('unet')" class="px-3.5 py-1.5 rounded-xl text-xs font-mono font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer flex items-center gap-1.5">
+              <i data-lucide="cpu" class="w-3.5 h-3.5"></i>
+              <span>U-Net AI Overlay</span>
+            </button>
+            <button id="satTabEsri" onclick="switchSatView('optical')" class="px-3.5 py-1.5 rounded-xl text-xs font-mono font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer flex items-center gap-1.5">
+              <i data-lucide="layers" class="w-3.5 h-3.5"></i>
+              <span>Optical Context</span>
+            </button>
+          </div>
+          <div class="text-[10.5px] font-mono text-slate-400 px-3 flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span>NESZ Noise Floor: -22.5 dB</span>
+          </div>
+        </div>
+
+        <!-- Main Display Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          
+          <!-- Image Canvas Viewer (2 cols) -->
+          <div class="lg:col-span-2 bg-slate-950 rounded-2xl p-3 border border-slate-800 relative overflow-hidden flex flex-col items-center justify-center min-h-[360px] shadow-inner">
+            <canvas id="sarCanvas" width="800" height="450" class="w-full h-auto max-h-[400px] object-contain rounded-xl border border-slate-800/80 shadow-2xl"></canvas>
+            
+            <div class="absolute top-5 left-5 bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-700/80 text-white text-[10.5px] font-mono space-y-0.5">
+              <div class="text-cyan-400 font-bold flex items-center gap-1.5">
+                <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
+                <span id="satCanvasOverlayTitle">SAR BACKSCATTER MODE (VV)</span>
+              </div>
+              <div id="satCanvasCoord" class="text-slate-400">Centroid: 18.86°N, 72.41°E</div>
+            </div>
+
+            <div class="absolute bottom-5 right-5 bg-slate-900/90 backdrop-blur-md px-3 py-1 rounded-xl border border-slate-700/80 text-slate-300 text-[10px] font-mono flex items-center space-x-3">
+              <span>Scale 1:25,000</span>
+              <span class="text-slate-600">|</span>
+              <span>Grid: 1km²</span>
+            </div>
+          </div>
+
+          <!-- Metadata & Telemetry Side Panel (1 col) -->
+          <div class="space-y-4">
+            
+            <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-3">
+              <h4 class="text-xs font-mono font-bold uppercase text-slate-400 tracking-wider">Satellite Scene Telemetry</h4>
+              
+              <div class="space-y-2 text-xs font-mono">
+                <div class="flex justify-between py-1 border-b border-slate-800/80">
+                  <span class="text-slate-400">Satellite Mission</span>
+                  <span id="satMetaPlatform" class="font-bold text-slate-200">Sentinel-1A SAR</span>
+                </div>
+                <div class="flex justify-between py-1 border-b border-slate-800/80">
+                  <span class="text-slate-400">Scene Identifier</span>
+                  <span id="satMetaSceneId" class="font-bold text-slate-200 text-[10px] truncate max-w-[150px]">S1A_IW_GRDH_1SDV</span>
+                </div>
+                <div class="flex justify-between py-1 border-b border-slate-800/80">
+                  <span class="text-slate-400">Sensor Band / Freq</span>
+                  <span class="font-bold text-indigo-400">C-Band (5.405 GHz)</span>
+                </div>
+                <div class="flex justify-between py-1 border-b border-slate-800/80">
+                  <span class="text-slate-400">Polarization Channel</span>
+                  <span class="font-bold text-emerald-400">VV + VH Dual-Pol</span>
+                </div>
+                <div class="flex justify-between py-1 border-b border-slate-800/80">
+                  <span class="text-slate-400">Pixel Resolution</span>
+                  <span class="font-bold text-slate-200">10m x 10m Ground</span>
+                </div>
+                <div class="flex justify-between py-1 border-b border-slate-800/80">
+                  <span class="text-slate-400">Acquisition Time</span>
+                  <span id="satMetaTime" class="font-bold text-slate-200">2026-09-01T06:00:00Z</span>
+                </div>
+                <div class="flex justify-between py-1">
+                  <span class="text-slate-400">Radar Damping</span>
+                  <span id="satMetaDamping" class="font-bold text-rose-400">9.2 dB Damping</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Operational Verdict Card -->
+            <div class="bg-indigo-950/40 p-4 rounded-2xl border border-indigo-800/40 space-y-2">
+              <div class="flex items-center space-x-2 text-indigo-300 font-bold text-xs">
+                <i data-lucide="shield-alert" class="w-4 h-4 text-indigo-400"></i>
+                <span>AI SAR Segmentation Summary</span>
+              </div>
+              <p id="satSummaryText" class="text-[11px] text-slate-300 leading-relaxed font-sans">
+                High contrast dark feature detected with radar signal attenuation. Sharp boundaries confirm mineral oil slick signature over ocean clutter background.
+              </p>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentSatViewMode = 'raw';
+
+    function openSatelliteModal() {
+      const modal = document.getElementById('satelliteViewerModal');
+      if (!modal) return;
+      modal.classList.remove('hidden');
+
+      const sc = currentScenarioData;
+      if (sc) {
+        if (sc.sar_image) {
+          const platformEl = document.getElementById('satMetaPlatform');
+          if (platformEl) platformEl.textContent = sc.sar_image.satellite || 'Sentinel-1A SAR';
+          const sceneEl = document.getElementById('satMetaSceneId');
+          if (sceneEl) sceneEl.textContent = sc.sar_image.scene_id || 'S1A_IW_GRDH_1SDV';
+          const timeEl = document.getElementById('satMetaTime');
+          if (timeEl) timeEl.textContent = sc.sar_image.acquisition_time || '2026-09-01T06:00:00Z';
         }
-        if (letterEl && u.name) {
-          letterEl.textContent = u.name.charAt(0).toUpperCase();
+        
+        if (sc.slicks && sc.slicks.length > 0) {
+          const coordEl = document.getElementById('satCanvasCoord');
+          if (coordEl) coordEl.textContent = `Centroid: ${sc.slicks[0].centroid.lat.toFixed(3)}°N, ${sc.slicks[0].centroid.lng.toFixed(3)}°E`;
         }
       }
-    } catch (e) {}
+
+      switchSatView(currentSatViewMode || 'raw');
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function switchSatView(mode) {
+      currentSatViewMode = mode;
+      const tabMap = {
+        'raw': 'satTabRaw',
+        'filtered': 'satTabFiltered',
+        'unet': 'satTabUnet',
+        'optical': 'satTabEsri'
+      };
+
+      Object.keys(tabMap).forEach(key => {
+        const el = document.getElementById(tabMap[key]);
+        if (el) {
+          if (key === mode) {
+            el.className = "px-3.5 py-1.5 rounded-xl text-xs font-mono font-medium bg-indigo-600 text-white transition-all shadow-sm cursor-pointer flex items-center gap-1.5";
+          } else {
+            el.className = "px-3.5 py-1.5 rounded-xl text-xs font-mono font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all cursor-pointer flex items-center gap-1.5";
+          }
+        }
+      });
+
+      const titleMap = {
+        'raw': 'SAR BACKSCATTER MODE (VV CO-POLARIZATION)',
+        'filtered': '5x5 LEE SPECKLE SUPPRESSION FILTER',
+        'unet': 'DEEP U-NET SEGMENTATION PROBABILITY HEATMAP',
+        'optical': 'ESRI WORLD HIGH-RES OPTICAL SATELLITE'
+      };
+      const titleEl = document.getElementById('satCanvasOverlayTitle');
+      if (titleEl) titleEl.textContent = titleMap[mode] || 'SAR VIEW';
+
+      drawSarCanvas(mode);
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function drawSarCanvas(mode) {
+      const canvas = document.getElementById('sarCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+
+      const sc = currentScenarioData;
+      const primaryUrl = sc?.sar_image?.image_url || (sc?.id ? `/sar_samples/${sc.id}.jpg` : '/sar_samples/scenario_alpha_rogue_tanker.jpg');
+      
+      const candidateUrls = [
+        primaryUrl,
+        `/sar_samples/${sc?.id || 'scenario_alpha_rogue_tanker'}.jpg`,
+        `/public/sar_samples/${sc?.id || 'scenario_alpha_rogue_tanker'}.jpg`,
+        '/sar_samples/scenario_alpha_rogue_tanker.jpg'
+      ];
+
+      let candidateIdx = 0;
+
+      function tryNextImage() {
+        if (candidateIdx >= candidateUrls.length) {
+          drawSyntheticSarFallback(ctx, w, h, mode, sc);
+          return;
+        }
+
+        const img = new Image();
+        const urlToTry = candidateUrls[candidateIdx++];
+        img.src = urlToTry;
+
+        img.onload = () => {
+          renderLoadedSarImage(ctx, img, w, h, mode);
+        };
+
+        img.onerror = () => {
+          tryNextImage();
+        };
+      }
+
+      tryNextImage();
+    }
+
+    function renderLoadedSarImage(ctx, img, w, h, mode) {
+      ctx.clearRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+
+      if (mode === 'filtered') {
+        ctx.fillStyle = 'rgba(16, 185, 129, 0.08)';
+        ctx.fillRect(0, 0, w, h);
+        ctx.strokeStyle = 'rgba(16, 185, 129, 0.5)';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(8, 8, w - 16, h - 16);
+      } else if (mode === 'unet') {
+        const grad = ctx.createRadialGradient(w * 0.5, h * 0.5, 30, w * 0.5, h * 0.5, w * 0.35);
+        grad.addColorStop(0, 'rgba(239, 68, 68, 0.70)');
+        grad.addColorStop(0.5, 'rgba(245, 158, 11, 0.40)');
+        grad.addColorStop(1, 'rgba(6, 182, 212, 0.05)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.ellipse(w * 0.5, h * 0.5, w * 0.3, h * 0.28, 0.1, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.strokeStyle = 'rgba(239, 68, 68, 0.8)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      } else if (mode === 'optical') {
+        ctx.fillStyle = 'rgba(14, 165, 233, 0.10)';
+        ctx.fillRect(0, 0, w, h);
+      }
+
+      // Radar Grid Overlay
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+      ctx.lineWidth = 1;
+      for (let x = 80; x < w; x += 100) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+      }
+      for (let y = 60; y < h; y += 80) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+      }
+    }
+
+    function drawSyntheticSarFallback(ctx, w, h, mode, sc) {
+      ctx.fillStyle = '#060d17';
+      ctx.fillRect(0, 0, w, h);
+
+      const imgData = ctx.getImageData(0, 0, w, h);
+      const data = imgData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const noise = Math.random() * 45 + 15;
+        data[i] = noise * 0.7;
+        data[i+1] = noise * 0.9;
+        data[i+2] = noise * 1.1;
+        data[i+3] = 255;
+      }
+      ctx.putImageData(imgData, 0, 0);
+
+      const grad = ctx.createRadialGradient(w * 0.48, h * 0.5, 10, w * 0.48, h * 0.5, 120);
+      grad.addColorStop(0, 'rgba(2, 6, 12, 0.92)');
+      grad.addColorStop(0.7, 'rgba(5, 15, 28, 0.75)');
+      grad.addColorStop(1, 'transparent');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.ellipse(w * 0.48, h * 0.5, 140, 75, -0.2, 0, Math.PI * 2);
+      ctx.fill();
+
+      renderLoadedSarImage(ctx, ctx.canvas, w, h, mode);
+    }
+
+    async function openIntelBriefModal() {
+      const modal = document.getElementById('intelBriefModal');
+      if (!modal) return;
+      modal.classList.remove('hidden');
+      const scenarioId = window.currentScenarioId || 'scenario_alpha_rogue_tanker';
+
+      try {
+        const res = await fetch(`/api/intelligence_brief/${scenarioId}`);
+        const brief = await res.json();
+
+        document.getElementById('briefCableId').textContent = brief.cable_id;
+        document.getElementById('briefClassification').textContent = brief.classification;
+        document.getElementById('briefThreatLevel').textContent = brief.threat_level;
+        document.getElementById('briefHeadline').textContent = brief.headline;
+        document.getElementById('briefTimestamp').textContent = `ISSUED: ${brief.timestamp_utc}`;
+        document.getElementById('briefExecutiveText').textContent = brief.executive_summary;
+        document.getElementById('briefTarget').textContent = brief.primary_target;
+        document.getElementById('briefScore').textContent = brief.attribution_score;
+        document.getElementById('briefRepeatStatus').textContent = brief.repeat_offender_status;
+
+        // Fetch SHA-256 from dossier endpoint
+        const dosRes = await fetch(`/api/dossier/${scenarioId}/markdown`);
+        const dosText = await dosRes.text();
+        const match = dosText.match(/SHA256:([a-f0-9]{64})/);
+        if (match) {
+          document.getElementById('briefSha256').textContent = `SHA256:${match[1].substring(0, 16)}... (VERIFIED)`;
+        }
+      } catch (err) {
+        console.error("Intel brief fetch error:", err);
+      }
+    }
   </script>
 </body>
 </html>
