@@ -3,7 +3,8 @@ Forward Drift Simulation, Coastal Landfall ETA & Environmental Risk Predictor.
 
 Projects the future trajectory of detected oil slicks over a 72-hour horizon,
 determines intersection with coastline / Marine Protected Areas (MPAs), and computes
-Shoreline Landfall Impact ETA and containment boom deployment plans.
+Shoreline Landfall Impact ETA and containment boom deployment plans with hydrodynamic
+waterbody channeling and strict land avoidance.
 """
 import math
 from datetime import datetime, timedelta
@@ -11,8 +12,9 @@ from typing import List, Dict, Any, Tuple
 from ml_engine.metrics import haversine_distance_km
 from backend.services.ocean_grid_engine import DynamicOceanGridEngine
 from backend.services.weathering_engine import OilWeatheringEngine
+from backend.services.coastal_water_engine import CoastalWaterRoutingEngine
 
-# Sensitive Coastal Infrastructure & Ecological Zones
+# Sensitive Coastal Infrastructure & Ecological Zones across All Theaters
 COASTAL_TARGETS = [
     # Arabian Sea / Mumbai Region
     {"name": "Manori & Gorai Coastal Wetlands & Marine Sanctuary", "lat": 19.240, "lng": 72.780, "type": "Coastal Mangrove Wetland", "vulnerability": "CRITICAL", "region": "Arabian Sea"},
@@ -25,16 +27,32 @@ COASTAL_TARGETS = [
     # Singapore Strait
     {"name": "Sisters' Islands Marine Park", "lat": 1.215, "lng": 103.835, "type": "Coral Reef Sanctuary", "vulnerability": "CRITICAL", "region": "Singapore Strait"},
     {"name": "Sentosa Island Recreational Beaches", "lat": 1.250, "lng": 103.820, "type": "Tourism Beach", "vulnerability": "HIGH", "region": "Singapore Strait"},
-    
-    # Bay of Bengal
+    {"name": "Pulau Semakau Coral Reefs", "lat": 1.205, "lng": 103.765, "type": "Marine Biosphere", "vulnerability": "CRITICAL", "region": "Singapore Strait"},
+
+    # Gulf of Kutch / Gujarat
+    {"name": "Narara Reef Marine National Park & Coral Biosphere", "lat": 22.465, "lng": 69.720, "type": "Coral Reef & Marine National Park", "vulnerability": "CRITICAL", "region": "Gulf of Kutch"},
+    {"name": "Pirotan Island Mangrove & Marine Sanctuary", "lat": 22.585, "lng": 69.950, "type": "Marine Sanctuary", "vulnerability": "CRITICAL", "region": "Gulf of Kutch"},
+    {"name": "Vadinar Coastal Fishing Grounds & SPM Buffer", "lat": 22.450, "lng": 69.670, "type": "Commercial Fishery & Port Channel", "vulnerability": "HIGH", "region": "Gulf of Kutch"},
+
+    # Gulf of Mannar & Palk Strait (Tamil Nadu)
+    {"name": "Gulf of Mannar Marine Biosphere Reserve (Tuticorin Sector)", "lat": 8.820, "lng": 78.220, "type": "UNESCO Biosphere Reserve & Coral Reefs", "vulnerability": "CRITICAL", "region": "Gulf of Mannar"},
+    {"name": "Mandapam & Rameshwaram Coastal Fishery Corridor", "lat": 9.270, "lng": 79.150, "type": "Marine Biosphere & Fishery", "vulnerability": "CRITICAL", "region": "Gulf of Mannar"},
+    {"name": "Kurusadai Island Coral Reef Ecosystem", "lat": 9.245, "lng": 79.215, "type": "Coral Reef Ecosystem", "vulnerability": "CRITICAL", "region": "Gulf of Mannar"},
+
+    # Bay of Bengal / Chennai
     {"name": "Pulicat Lagoon Estuary & Mangroves", "lat": 13.420, "lng": 80.320, "type": "Estuarine Biosphere", "vulnerability": "CRITICAL", "region": "Bay of Bengal"},
     {"name": "Marina Coastal Biosphere", "lat": 13.040, "lng": 80.280, "type": "Public Coastline", "vulnerability": "HIGH", "region": "Bay of Bengal"},
+
+    # Lakshadweep Archipelago
+    {"name": "Kalpeni Atoll Coral Lagoon & Turtle Sanctuary", "lat": 10.080, "lng": 73.640, "type": "Atoll Coral Lagoon", "vulnerability": "CRITICAL", "region": "Lakshadweep"},
+    {"name": "Androth Island Coastal Reefs", "lat": 10.820, "lng": 73.680, "type": "Coral Habitat", "vulnerability": "HIGH", "region": "Lakshadweep"},
 ]
 
 class CoastalLandfallPredictor:
     def __init__(self):
         self.grid_engine = DynamicOceanGridEngine()
         self.weathering_engine = OilWeatheringEngine()
+        self.water_engine = CoastalWaterRoutingEngine()
 
     def simulate_forward_drift_72h(
         self,
@@ -48,17 +66,18 @@ class CoastalLandfallPredictor:
         start_time_iso: str = "2026-09-01T06:00:00Z"
     ) -> Dict[str, Any]:
         """
-        Runs forward Lagrangian simulation in 1-hour increments up to +72 hours.
+        Runs forward Lagrangian simulation in 1-hour increments up to +72 hours
+        routed strictly through marine waterbodies with hydrodynamic land avoidance.
         """
         dt_start = datetime.fromisoformat(start_time_iso.replace("Z", "+00:00"))
         
         trajectory_points = []
         cur_lat, cur_lng = start_lat, start_lng
-        cone_polygons = []
 
         landfall_hit = None
         min_shore_dist_km = float("inf")
         closest_target = None
+        has_made_landfall = False
 
         for h in range(1, 73):
             # Dynamic wind/current vectors at current location and time
@@ -72,20 +91,26 @@ class CoastalLandfallPredictor:
                 base_current_deg=base_current_deg
             )
 
-            # Move forward 1 hour
-            # Net velocity in km/h
+            # Net unconstrained velocity in km/h
             net_u_kmh = dyn["net_u_ms"] * 3.6
             net_v_kmh = dyn["net_v_ms"] * 3.6
 
-            d_north_km = net_v_kmh * 1.0
-            d_east_km = net_u_kmh * 1.0
+            # Compute hydrodynamic step routed strictly through waterbodies
+            next_lat, next_lng, is_beached = self.water_engine.compute_hydrodynamic_steered_step(
+                current_lat=cur_lat,
+                current_lng=cur_lng,
+                target_u_kmh=net_u_kmh,
+                target_v_kmh=net_v_kmh,
+                dt_hours=1.0,
+                sub_steps=6
+            )
 
-            cur_lat += (d_north_km / 111.139)
-            cur_lng += (d_east_km / (111.139 * math.cos(math.radians(cur_lat))))
+            cur_lat = next_lat
+            cur_lng = next_lng
 
             pt_time = (dt_start + timedelta(hours=h)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-            # Dispersion uncertainty cone radius (widens over time)
+            # Dispersion uncertainty cone radius (widens over time, bounded near shoreline)
             cone_radius_km = round(0.4 + 0.15 * math.sqrt(h), 2)
 
             trajectory_points.append({
@@ -95,7 +120,8 @@ class CoastalLandfallPredictor:
                 "lng": round(cur_lng, 6),
                 "uncertainty_radius_km": cone_radius_km,
                 "wind_speed_ms": dyn["wind_speed_ms"],
-                "current_speed_ms": dyn["current_speed_ms"]
+                "current_speed_ms": dyn["current_speed_ms"],
+                "is_landfall_point": is_beached
             })
 
             # Check proximity to coastal targets
@@ -105,8 +131,8 @@ class CoastalLandfallPredictor:
                     min_shore_dist_km = round(dist, 2)
                     closest_target = target
 
-                # If slick gets within 3.5 km of target, mark landfall impact!
-                if dist <= 3.5 and landfall_hit is None:
+                # If slick reaches beach boundary or gets within 3.5 km of sensitive target
+                if (is_beached or dist <= 3.5) and landfall_hit is None:
                     landfall_hit = {
                         "target_name": target["name"],
                         "target_type": target["type"],
@@ -117,9 +143,10 @@ class CoastalLandfallPredictor:
                         "impact_lng": round(cur_lng, 6),
                         "distance_km": round(dist, 2)
                     }
+                    has_made_landfall = True
 
         # If no direct hit within 3.5km, calculate closest approach ETA
-        if not landfall_hit and closest_target and min_shore_dist_km < 15.0:
+        if not landfall_hit and closest_target and min_shore_dist_km < 18.0:
             est_hours = round(min_shore_dist_km / 1.2, 1)
             landfall_hit = {
                 "target_name": closest_target["name"],
@@ -145,7 +172,7 @@ class CoastalLandfallPredictor:
             "skimmer_vessels_needed": 2 if initial_volume_m3 > 10 else 1,
             "chemical_dispersant_status": "PROHIBITED (Within 10km Coastal Buffer)" if min_shore_dist_km < 10.0 else "AUTHORIZED FOR DEEP SEA APPLICATION",
             "priority_defense_site": closest_target["name"] if closest_target else "Open Sea Corridor",
-            "suggested_barrier_coords": [round(start_lat + 0.04, 4), round(start_lng + 0.04, 4)]
+            "suggested_barrier_coords": [round(start_lat + 0.02, 4), round(start_lng + 0.02, 4)]
         }
 
         # 72h Weathering projection

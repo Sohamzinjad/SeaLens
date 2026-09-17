@@ -11,6 +11,12 @@
 4. **PostGIS Spatio-Temporal Trajectory Correlation**: Intersects the origin cone against AIS vessel tracks, evaluating Closest Point of Approach (CPA), speed anomalies, and vessel risk priors.
 5. **Interactive C2 Dashboard & Evidence Dossier**: Real-time map with timeline scrubber, vessel telemetry drilldowns, and 1-click legal PDF evidence reports.
 
+### Recent Updates
+- **Frontend / UI**: Upgraded the C2 dashboard with light-themed, draggable popup bezels, click-to-open previews, and thickened glass frame padding for SAR images.
+- **Backend Services**: Introduced the `CoastalWaterEngine` for coastal water modeling and updated the `LandfallPredictor`.
+- **Data & Reporting**: Enhanced scenario data definitions, report generation capabilities, and updated sample SAR scene TIFF data files.
+- **Testing**: Updated SAR CV pipeline tests and the innovation test suite.
+
 ---
 
 ## 📋 System Audit & Future Scope

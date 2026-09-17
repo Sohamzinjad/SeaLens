@@ -301,6 +301,30 @@
       box-shadow: 0 0 0 4px rgba(225,29,72,0.25), 0 0 22px rgba(225,29,72,0.75);
     }
 
+    @keyframes mapGlowPulse {
+      0%, 100% {
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25), 0 0 10px rgba(37, 99, 235, 0.4);
+      }
+      50% {
+        box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.45), 0 0 18px rgba(37, 99, 235, 0.7);
+      }
+    }
+    .map-glow-pulse {
+      animation: mapGlowPulse 2s infinite ease-in-out;
+    }
+
+    @keyframes darkGlowPulse {
+      0%, 100% {
+        box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.3), 0 0 12px rgba(225, 29, 72, 0.6);
+      }
+      50% {
+        box-shadow: 0 0 0 7px rgba(225, 29, 72, 0.55), 0 0 22px rgba(225, 29, 72, 0.95);
+      }
+    }
+    .dark-glow-pulse {
+      animation: darkGlowPulse 1.8s infinite ease-in-out;
+    }
+
     /* ──────────────────────────────────────────
        NAVBAR ACCENT LINE
     ────────────────────────────────────────── */
@@ -473,23 +497,12 @@
     </div>
 
     <!-- Right Telemetry & Profile -->
+    <!-- Right Telemetry & Profile -->
     <div class="flex items-center space-x-3.5">
       <!-- GIS GeoJSON Export Button -->
       <button id="btnExportGeoJSON" class="hidden sm:flex items-center space-x-1.5 px-3 py-1 bg-white hover:bg-neutral-100 text-neutral-800 border border-black/10 rounded-full text-xs font-bold shadow-sm transition-all">
         <i data-lucide="download" class="w-3.5 h-3.5 text-blue-600"></i>
         <span>Export GIS</span>
-      </button>
-
-      <!-- Satellite SAR Image Viewer Button -->
-      <button id="btnOpenSatelliteModal" onclick="openSatelliteModal()" class="hidden sm:flex items-center space-x-1.5 px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full text-xs font-bold shadow-sm transition-all cursor-pointer">
-        <i data-lucide="satellite" class="w-3.5 h-3.5 text-white"></i>
-        <span>🛰️ SAR Satellite Scene</span>
-      </button>
-
-      <!-- NTRO Intelligence Cable Button -->
-      <button id="btnOpenIntelBrief" onclick="openIntelBriefModal()" class="hidden sm:flex items-center space-x-1.5 px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-full text-xs font-bold shadow-sm transition-all cursor-pointer">
-        <i data-lucide="file-text" class="w-3.5 h-3.5 text-white"></i>
-        <span>📜 NTRO Intel Cable</span>
       </button>
 
       <!-- Live Status Pill -->
@@ -498,9 +511,9 @@
         <span>LIVE</span>
       </div>
 
-      <!-- Live UTC Clock -->
-      <div id="liveClockUtc" class="text-xs font-semibold text-neutral-600 font-mono">
-        7 Sep 2026 12:35 UTC
+      <!-- Live IST Clock -->
+      <div id="liveClockIst" class="text-xs font-semibold text-neutral-600 font-mono">
+        17 Sep 2026 21:28 IST
       </div>
 
       <!-- User Profile Badge -->
@@ -524,10 +537,9 @@
     <!-- RADIAL MAP VIGNETTE -->
     <div class="map-vignette"></div>
 
-    <!-- SAR LEADER LINES & PURE VISUAL POPUPS OVERLAY CONTAINER -->
-    <svg id="sarLeaderLinesSvg" class="absolute inset-0 w-full h-full pointer-events-none z-20"></svg>
-    <div id="sarPurePopupsContainer" class="absolute inset-0 w-full h-full pointer-events-none z-30"></div>
-    <div id="sarEnlargedPreviewContainer" class="absolute inset-0 w-full h-full pointer-events-none z-40 hidden"></div>
+    <!-- SAR LEADER LINES SVG (pointer-events pass through) -->
+    <svg id="sarLeaderLinesSvg" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:25;"></svg>
+
 
 
     <!-- FLOATING SURVEILLANCE OVERLAY CARD -->
@@ -604,8 +616,8 @@
             <span id="sarSensor" class="font-bold text-neutral-900">Sentinel-1B (C-Band)</span>
           </div>
           <div class="flex justify-between items-center">
-            <span style="color: rgba(0,0,0,0.42);">Acquisition UTC</span>
-            <span id="sarTime" class="font-bold text-neutral-900">04:15:00Z</span>
+            <span style="color: rgba(0,0,0,0.42);">Acquisition (IST)</span>
+            <span id="sarTime" class="font-bold text-neutral-900">09:45 IST</span>
           </div>
           <div class="flex justify-between items-center">
             <span style="color: rgba(0,0,0,0.42);">Spatial Resolution</span>
@@ -779,7 +791,7 @@
       <!-- Label block -->
       <div class="flex flex-col shrink-0 min-w-[120px]">
         <span class="text-[8px] font-mono font-bold uppercase tracking-[0.12em]" style="color: rgba(0,0,0,0.35);">Mission Replay</span>
-        <span id="currentTimeLabel" class="text-[11px] font-mono font-black text-neutral-900 leading-tight">06:00 UTC · Detection Pass</span>
+        <span id="currentTimeLabel" class="text-[11px] font-mono font-black text-neutral-900 leading-tight">11:30 IST · Detection Pass</span>
       </div>
 
       <!-- Divider -->
@@ -795,7 +807,7 @@
           style="accent-color: #111827; height: 4px;"
         />
         <div class="flex justify-between text-[8px] font-mono font-bold px-0.5" style="color: rgba(0,0,0,0.30);">
-          <span>01:30</span><span>03:00</span><span>04:15</span><span>06:00Z</span>
+          <span>07:00</span><span>08:30</span><span>09:45</span><span>11:30 IST</span>
         </div>
       </div>
     </div>
@@ -1158,16 +1170,58 @@
   <script>
     lucide.createIcons();
 
-    // Live UTC Clock
-    setInterval(() => {
+    // Live Indian Standard Time (IST) Clock (UTC+05:30)
+    function updateLiveClock() {
       const now = new Date();
-      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-      const d = now.getUTCDate();
-      const m = monthNames[now.getUTCMonth()];
-      const y = now.getUTCFullYear();
-      const timeStr = now.toUTCString().split(' ')[4];
-      document.getElementById('liveClockUtc').textContent = `${d} ${m} ${y} ${timeStr} UTC`;
-    }, 1000);
+      const istOptions = {
+        timeZone: 'Asia/Kolkata',
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      };
+      const formatter = new Intl.DateTimeFormat('en-IN', istOptions);
+      const parts = formatter.formatToParts(now);
+      const d = parts.find(p => p.type === 'day')?.value || now.getDate();
+      const m = parts.find(p => p.type === 'month')?.value || 'Sep';
+      const y = parts.find(p => p.type === 'year')?.value || now.getFullYear();
+      const hr = parts.find(p => p.type === 'hour')?.value || '00';
+      const min = parts.find(p => p.type === 'minute')?.value || '00';
+      const sec = parts.find(p => p.type === 'second')?.value || '00';
+      const clockEl = document.getElementById('liveClockIst') || document.getElementById('liveClockUtc');
+      if (clockEl) {
+        clockEl.textContent = `${d} ${m} ${y} ${hr}:${min}:${sec} IST`;
+      }
+    }
+    setInterval(updateLiveClock, 1000);
+    updateLiveClock();
+
+    function formatUtcToIst(utcStr) {
+      if (!utcStr) return '09:45 IST';
+      try {
+        const date = new Date(utcStr);
+        if (isNaN(date.getTime())) return utcStr;
+        const istTime = date.toLocaleTimeString('en-IN', {
+          timeZone: 'Asia/Kolkata',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false
+        });
+        const istDate = date.toLocaleDateString('en-IN', {
+          timeZone: 'Asia/Kolkata',
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric'
+        });
+        return `${istTime} IST (${istDate})`;
+      } catch (e) {
+        return utcStr;
+      }
+    }
 
     // MapLibre GL engine setup
     window.mapboxgl = window.maplibregl;
@@ -1662,8 +1716,8 @@
         intel.targets.forEach(t => {
           if (t.is_dark_vessel) {
             const el = document.createElement('div');
-            el.className = 'w-6.5 h-6.5 rounded-full bg-red-600 border-2 border-white glow-dark flex items-center justify-center cursor-pointer';
-            el.innerHTML = `<span class="w-2 h-2 rounded-full bg-white animate-ping"></span>`;
+            el.className = 'w-6 h-6 rounded-full bg-red-600 border-2 border-white dark-glow-pulse flex items-center justify-center cursor-pointer shadow-lg';
+            el.innerHTML = `<span class="w-2 h-2 rounded-full bg-white"></span>`;
             
             el.addEventListener('click', () => {
               openVesselDrawer({
@@ -1787,7 +1841,7 @@
       if (subEl) subEl.textContent = data.title || 'Tactical Sector';
 
       document.getElementById('sarSensor').textContent = data.sar_image?.satellite || 'Sentinel-1';
-      document.getElementById('sarTime').textContent = data.sar_image?.acquisition_time ? `${data.sar_image.acquisition_time.split('T')[1]} (7 Sep 2026)` : '04:15:00Z';
+      document.getElementById('sarTime').textContent = data.sar_image?.acquisition_time ? formatUtcToIst(data.sar_image.acquisition_time) : '09:45:00 IST';
 
       const primarySlick = data.slicks && data.slicks[0];
       if (primarySlick) {
@@ -1859,7 +1913,7 @@
         createPureSarPopup(data.id, cLng, cLat, sarImgUrl);
 
         const pinNode = document.createElement('div');
-        pinNode.className = 'w-4 h-4 rounded-full bg-cyan-400 border-2 border-white shadow-lg animate-ping cursor-pointer';
+        pinNode.className = 'w-4 h-4 rounded-full bg-cyan-400 border-2 border-white map-glow-pulse cursor-pointer shadow-lg';
         pinNode.addEventListener('click', () => openSatelliteModal());
 
         const pinMarker = new maplibregl.Marker({ element: pinNode })
@@ -1898,7 +1952,7 @@
           const ballNode = document.createElement('div');
           
           if (isPrimary) {
-            ballNode.className = 'w-7 h-7 rounded-full bg-rose-600 border-2 border-white glow-threat flex items-center justify-center text-white font-mono text-[9px] font-bold animate-pulse cursor-pointer';
+            ballNode.className = 'w-7 h-7 rounded-full bg-rose-600 border-2 border-white dark-glow-pulse flex items-center justify-center text-white font-mono text-[9px] font-bold cursor-pointer';
             ballNode.innerHTML = `<i data-lucide="navigation" class="w-3.5 h-3.5 text-white"></i>`;
           } else if (isPotential) {
             ballNode.className = 'w-5.5 h-5.5 rounded-full bg-amber-500 border-2 border-white shadow-lg flex items-center justify-center text-white font-mono text-[8px] font-bold cursor-pointer';
@@ -2096,10 +2150,10 @@
     function updateSliderTime(val) {
       if (!currentScenarioData) return;
 
-      let stepTime = "06:00 UTC · Detection Pass";
-      if (val < 25) stepTime = "01:30 UTC · Initial Transit";
-      else if (val < 50) stepTime = "03:00 UTC · Discharge Event";
-      else if (val < 75) stepTime = "04:15 UTC · SAR Acquisition";
+      let stepTime = "11:30 IST · Detection Pass";
+      if (val < 25) stepTime = "07:00 IST · Initial Transit";
+      else if (val < 50) stepTime = "08:30 IST · Discharge Event";
+      else if (val < 75) stepTime = "09:45 IST · SAR Acquisition";
 
       currentTimeLabel.textContent = stepTime;
       if (currentScenarioData) {
@@ -2292,10 +2346,14 @@
 
       // 3. Containment Boom Barrier
       const landfall = forecast.landfall_impact || {};
-      const hitPt = trajPts[Math.min(18, trajPts.length - 1)];
+      const etaHrs = landfall.eta_hours || forecast.landfall_eta_hours || 18.4;
+      const hitPt = (landfall && landfall.impact_lat && landfall.impact_lng) 
+        ? { lat: landfall.impact_lat, lng: landfall.impact_lng } 
+        : (trajPts.find(p => p.hour === Math.round(etaHrs)) || trajPts[Math.min(18, trajPts.length - 1)]);
+      
       const boomCoords = [
-        [hitPt.lng - 0.012, hitPt.lat - 0.004],
-        [hitPt.lng + 0.012, hitPt.lat + 0.008]
+        [hitPt.lng - 0.008, hitPt.lat - 0.003],
+        [hitPt.lng + 0.008, hitPt.lat + 0.005]
       ];
       if (map.getSource('containment-booms-src')) {
         map.getSource('containment-booms-src').setData({
@@ -2309,14 +2367,13 @@
       }
 
       // 4. Landfall Alert Pulse Marker
-      const etaHrs = landfall.eta_hours || forecast.landfall_eta_hours || 18.4;
       const targetName = landfall.target_name || forecast.landfall_target || "Protected Coastal Marine Sanctuary";
       const boomLength = forecast.containment_plan?.containment_booms_recommended_m ? `${forecast.containment_plan.containment_booms_recommended_m}m Type-3 Boom` : "1,200m Type-3 Boom";
 
       const landfallNode = document.createElement('div');
-      landfallNode.className = 'px-3 py-1.5 rounded-xl bg-rose-600 text-white font-mono text-[10px] font-extrabold border-2 border-white shadow-2xl flex items-center space-x-1.5 animate-bounce cursor-pointer';
+      landfallNode.className = 'px-3 py-1.5 rounded-xl bg-rose-600 text-white font-mono text-[10px] font-extrabold border-2 border-white shadow-2xl flex items-center space-x-1.5 dark-glow-pulse cursor-pointer';
       landfallNode.innerHTML = `
-        <span class="w-2 h-2 rounded-full bg-white animate-ping"></span>
+        <span class="w-2 h-2 rounded-full bg-white"></span>
         <span>⚠️ LANDFALL ETA +${etaHrs}h</span>
       `;
       const landfallMarker = new maplibregl.Marker({ element: landfallNode })
@@ -2498,7 +2555,7 @@
           if (result.radar_ships) {
             result.radar_ships.forEach(ship => {
               const el = document.createElement('div');
-              el.className = 'w-7 h-7 rounded-full bg-cyan-500/30 border-2 border-cyan-400 flex items-center justify-center cursor-pointer shadow-lg animate-pulse';
+              el.className = 'w-7 h-7 rounded-full bg-cyan-500/30 border-2 border-cyan-400 flex items-center justify-center cursor-pointer shadow-lg map-glow-pulse';
               el.innerHTML = `<span class="w-2 h-2 rounded-full bg-cyan-300"></span>`;
 
               el.addEventListener('click', () => {
@@ -2980,7 +3037,7 @@
         document.getElementById('briefClassification').textContent = brief.classification;
         document.getElementById('briefThreatLevel').textContent = brief.threat_level;
         document.getElementById('briefHeadline').textContent = brief.headline;
-        document.getElementById('briefTimestamp').textContent = `ISSUED: ${brief.timestamp_utc}`;
+        document.getElementById('briefTimestamp').textContent = `ISSUED: ${formatUtcToIst(brief.timestamp_utc)}`;
         document.getElementById('briefExecutiveText').textContent = brief.executive_summary;
         document.getElementById('briefTarget').textContent = brief.primary_target;
         document.getElementById('briefScore').textContent = brief.attribution_score;
@@ -3000,22 +3057,33 @@
 
     /* ──────────────────────────────────────────
        PURE VISUAL SAR INTELLIGENCE POPUPS SYSTEM
+       Rewritten: uses document-level mouse events
+       for reliable drag. Cards appended to <main>.
     ────────────────────────────────────────── */
     let activeSarPopups = [];
+    let _sarDragState = null; // Global drag state for the small card
+    let _sarEnlargedDragState = null; // Global drag state for enlarged panel header
+    let _sarEnlargedPanState = null;  // Global pan state for enlarged viewport
+
     let enlargedViewState = {
       isOpen: false,
       scale: 1.0,
       panX: 0,
       panY: 0,
       posX: 0,
-      posY: 0,
-      isDraggingPanel: false,
-      isPanningImg: false
+      posY: 0
     };
 
+    function _getMainEl() {
+      return document.querySelector('main');
+    }
+
     function clearPureSarPopups() {
-      const container = document.getElementById('sarPurePopupsContainer');
-      if (container) container.innerHTML = '';
+      activeSarPopups.forEach(p => {
+        if (p.element && p.element.parentNode) {
+          p.element.parentNode.removeChild(p.element);
+        }
+      });
       const svg = document.getElementById('sarLeaderLinesSvg');
       if (svg) svg.innerHTML = '';
       activeSarPopups = [];
@@ -3024,8 +3092,8 @@
     function createPureSarPopup(id, lng, lat, sarImgUrl) {
       clearPureSarPopups();
 
-      const container = document.getElementById('sarPurePopupsContainer');
-      if (!container || !map) return;
+      const mainEl = _getMainEl();
+      if (!mainEl || !map) return;
 
       const popupObj = {
         id,
@@ -3038,75 +3106,114 @@
 
       const card = document.createElement('div');
       card.id = `sarPureCard_${id}`;
-      card.className = 'sar-pure-card absolute pointer-events-auto cursor-grab active:cursor-grabbing';
-      card.style.left = '0px';
-      card.style.top = '0px';
-      card.style.opacity = '0';
-      card.style.transform = 'translateY(8px)';
+      card.className = 'sar-pure-card';
+      card.style.cssText = 'position:absolute; z-index:30; left:0; top:0; opacity:0; transform:translateY(8px); cursor:grab; user-select:none; -webkit-user-select:none; touch-action:none;';
 
-      card.innerHTML = `
-        <img src="${sarImgUrl}" alt="SAR Visual Intelligence Artifact" class="w-full h-full object-cover select-none cursor-pointer" onerror="this.src='/sar_samples/scenario_alpha_rogue_tanker.jpg'" />
-      `;
+      const img = document.createElement('img');
+      img.src = sarImgUrl;
+      img.alt = 'SAR Visual Intelligence Artifact';
+      img.draggable = false;
+      img.style.cssText = 'width:100%; height:100%; object-fit:cover; border-radius:10px; display:block; pointer-events:none;';
+      img.onerror = function() { this.src = '/sar_samples/scenario_alpha_rogue_tanker.jpg'; };
+      card.appendChild(img);
 
-      const img = card.querySelector('img');
-      let isDragging = false;
+      // --- Drag & Click via document-level mouse events ---
       let hasDragged = false;
-      let startMouseX = 0, startMouseY = 0;
-      let startOffsetX = 0, startOffsetY = 0;
 
-      img.addEventListener('click', (e) => {
-        if (hasDragged) {
-          e.stopPropagation();
-          return;
-        }
-        openEnlargedSarPreview(sarImgUrl);
-      });
-
-      card.addEventListener('pointerdown', (e) => {
-        isDragging = true;
+      card.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         hasDragged = false;
-        card.classList.remove('cursor-grab');
-        card.classList.add('cursor-grabbing');
-        startMouseX = e.clientX;
-        startMouseY = e.clientY;
-        startOffsetX = popupObj.offset.x;
-        startOffsetY = popupObj.offset.y;
-        card.setPointerCapture(e.pointerId);
+        card.style.cursor = 'grabbing';
+        _sarDragState = {
+          popupObj,
+          card,
+          startMouseX: e.clientX,
+          startMouseY: e.clientY,
+          startOffsetX: popupObj.offset.x,
+          startOffsetY: popupObj.offset.y,
+          hasDraggedRef: { value: false }
+        };
       });
 
-      card.addEventListener('pointermove', (e) => {
-        if (!isDragging) return;
-        const dx = e.clientX - startMouseX;
-        const dy = e.clientY - startMouseY;
-        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
-          hasDragged = true;
+      card.addEventListener('click', (e) => {
+        e.stopPropagation();
+        // Only open if we didn't drag
+        if (!hasDragged) {
+          openEnlargedSarPreview(sarImgUrl);
         }
-        popupObj.offset.x = startOffsetX + dx;
-        popupObj.offset.y = startOffsetY + dy;
-        updateSarPopupsPositions();
       });
 
-      const stopDrag = (e) => {
-        if (!isDragging) return;
-        isDragging = false;
-        card.classList.remove('cursor-grabbing');
-        card.classList.add('cursor-grab');
-        try { card.releasePointerCapture(e.pointerId); } catch(err) {}
-      };
+      // Store reference for the mouseup handler to update hasDragged
+      card._sarHasDraggedSetter = (v) => { hasDragged = v; };
 
-      card.addEventListener('pointerup', stopDrag);
-      card.addEventListener('pointercancel', stopDrag);
-
-      container.appendChild(card);
+      mainEl.appendChild(card);
       popupObj.element = card;
       activeSarPopups.push(popupObj);
 
       requestAnimationFrame(() => {
         updateSarPopupsPositions();
+        card.style.transition = 'opacity 180ms ease, transform 180ms ease';
         card.style.opacity = '1';
         card.style.transform = 'translateY(0)';
       });
     }
+
+    // --- Document-level mouse handlers for card drag ---
+    document.addEventListener('mousemove', (e) => {
+      if (_sarDragState) {
+        const dx = e.clientX - _sarDragState.startMouseX;
+        const dy = e.clientY - _sarDragState.startMouseY;
+        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+          _sarDragState.hasDraggedRef.value = true;
+        }
+        _sarDragState.popupObj.offset.x = _sarDragState.startOffsetX + dx;
+        _sarDragState.popupObj.offset.y = _sarDragState.startOffsetY + dy;
+        updateSarPopupsPositions();
+      }
+
+      // Enlarged panel header drag
+      if (_sarEnlargedDragState) {
+        const panel = document.getElementById('sarEnlargedPanel');
+        if (panel) {
+          enlargedViewState.posX = _sarEnlargedDragState.startPanelX + (e.clientX - _sarEnlargedDragState.startMouseX);
+          enlargedViewState.posY = _sarEnlargedDragState.startPanelY + (e.clientY - _sarEnlargedDragState.startMouseY);
+          panel.style.left = enlargedViewState.posX + 'px';
+          panel.style.top = enlargedViewState.posY + 'px';
+        }
+      }
+
+      // Enlarged viewport image pan
+      if (_sarEnlargedPanState) {
+        enlargedViewState.panX = _sarEnlargedPanState.startImgPanX + (e.clientX - _sarEnlargedPanState.startPanX);
+        enlargedViewState.panY = _sarEnlargedPanState.startImgPanY + (e.clientY - _sarEnlargedPanState.startPanY);
+        updateEnlargedSarTransform();
+      }
+    });
+
+    document.addEventListener('mouseup', (e) => {
+      if (_sarDragState) {
+        const didDrag = _sarDragState.hasDraggedRef.value;
+        const card = _sarDragState.card;
+        card.style.cursor = 'grab';
+        if (card._sarHasDraggedSetter) {
+          card._sarHasDraggedSetter(didDrag);
+        }
+        _sarDragState = null;
+      }
+
+      if (_sarEnlargedDragState) {
+        const header = document.getElementById('sarEnlargedHeader');
+        if (header) header.style.cursor = 'grab';
+        _sarEnlargedDragState = null;
+      }
+
+      if (_sarEnlargedPanState) {
+        const viewport = document.getElementById('sarEnlargedViewport');
+        if (viewport) viewport.style.cursor = 'grab';
+        _sarEnlargedPanState = null;
+      }
+    });
 
     function updateSarPopupsPositions() {
       if (!map) return;
@@ -3119,8 +3226,8 @@
         const cardX = originPos.x + popup.offset.x;
         const cardY = originPos.y + popup.offset.y;
 
-        popup.element.style.left = `${cardX}px`;
-        popup.element.style.top = `${cardY}px`;
+        popup.element.style.left = cardX + 'px';
+        popup.element.style.top = cardY + 'px';
 
         const cardW = 252;
         const cardH = 164;
@@ -3137,35 +3244,18 @@
       if (svg) svg.innerHTML = svgHtml;
     }
 
+    /* ──────────────────────────────────────────
+       ENLARGED SAR PREVIEW PANEL
+    ────────────────────────────────────────── */
     function openEnlargedSarPreview(imgUrl) {
-      const container = document.getElementById('sarEnlargedPreviewContainer');
-      if (!container) return;
+      // Remove any existing enlarged panel
+      closeEnlargedSarPreview();
+
+      const mainEl = _getMainEl();
+      if (!mainEl) return;
 
       const initX = Math.max(20, Math.round(window.innerWidth / 2 - 270));
       const initY = Math.max(20, Math.round(window.innerHeight / 2 - 180));
-
-      container.classList.remove('hidden');
-      container.innerHTML = `
-        <div id="sarEnlargedPanel" class="sar-enlarged-panel absolute pointer-events-auto flex flex-col overflow-hidden" style="left: ${initX}px; top: ${initY}px;">
-          <div id="sarEnlargedHeader" class="h-8.5 px-3.5 flex items-center justify-between cursor-grab active:cursor-grabbing bg-white/90 border-b border-black/8 select-none">
-            <span class="text-[10.5px] font-mono font-bold text-neutral-800 tracking-wider uppercase flex items-center gap-1.5">
-              <span class="w-2 h-2 rounded-full bg-blue-600"></span>
-              SAR Visual Intelligence Preview
-            </span>
-            <button onclick="closeEnlargedSarPreview()" class="w-5.5 h-5.5 rounded-full bg-black/5 hover:bg-black/10 text-neutral-600 hover:text-neutral-900 flex items-center justify-center transition-colors text-xs font-bold">×</button>
-          </div>
-          
-          <div id="sarEnlargedViewport" class="relative flex-1 bg-slate-950 overflow-hidden flex items-center justify-center cursor-grab active:cursor-grabbing rounded-b-[14px]">
-            <img id="sarEnlargedImg" src="${imgUrl}" alt="Enlarged SAR Image" class="max-w-none transition-transform duration-75 select-none" style="transform: scale(1) translate(0px, 0px); width: 100%; height: 100%; object-fit: contain;" onerror="this.src='/sar_samples/scenario_alpha_rogue_tanker.jpg'" />
-            
-            <div class="absolute bottom-3 right-3 flex items-center gap-1 bg-white/90 backdrop-blur-md px-2 py-1 rounded-xl border border-black/10 text-xs font-mono text-neutral-800 z-10 shadow-md pointer-events-auto">
-              <button onclick="zoomEnlargedSar(0.25)" class="w-6 h-6 rounded-lg bg-black/5 hover:bg-black/10 font-bold flex items-center justify-center transition-colors">+</button>
-              <button onclick="zoomEnlargedSar(-0.25)" class="w-6 h-6 rounded-lg bg-black/5 hover:bg-black/10 font-bold flex items-center justify-center transition-colors">-</button>
-              <button onclick="resetEnlargedSarZoom()" class="px-2 h-6 rounded-lg bg-black/5 hover:bg-black/10 font-bold text-[10px] flex items-center justify-center transition-colors">Reset</button>
-            </div>
-          </div>
-        </div>
-      `;
 
       enlargedViewState = {
         isOpen: true,
@@ -3173,74 +3263,76 @@
         panX: 0,
         panY: 0,
         posX: initX,
-        posY: initY,
-        isDraggingPanel: false,
-        isPanningImg: false
+        posY: initY
       };
 
-      const panel = document.getElementById('sarEnlargedPanel');
+      const panel = document.createElement('div');
+      panel.id = 'sarEnlargedPanel';
+      panel.className = 'sar-enlarged-panel';
+      panel.style.cssText = `position:absolute; z-index:50; left:${initX}px; top:${initY}px; display:flex; flex-direction:column; overflow:hidden;`;
+
+      panel.innerHTML = `
+        <div id="sarEnlargedHeader" style="height:34px; padding:0 14px; display:flex; align-items:center; justify-content:space-between; cursor:grab; background:rgba(255,255,255,0.92); border-bottom:1px solid rgba(0,0,0,0.08); user-select:none; -webkit-user-select:none;">
+          <span style="font-size:10.5px; font-family:'JetBrains Mono',monospace; font-weight:700; color:#262626; letter-spacing:0.08em; text-transform:uppercase; display:flex; align-items:center; gap:6px;">
+            <span style="width:7px; height:7px; border-radius:50%; background:#2563EB;"></span>
+            SAR Visual Intelligence Preview
+          </span>
+          <button id="sarEnlargedCloseBtn" style="width:22px; height:22px; border-radius:50%; background:rgba(0,0,0,0.05); border:none; color:#666; font-size:13px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background 150ms;">×</button>
+        </div>
+        <div id="sarEnlargedViewport" style="position:relative; flex:1; background:#0f172a; overflow:hidden; display:flex; align-items:center; justify-content:center; cursor:grab; border-radius:0 0 14px 14px;">
+          <img id="sarEnlargedImg" src="${imgUrl}" alt="Enlarged SAR" draggable="false" style="max-width:none; width:100%; height:100%; object-fit:contain; transform:scale(1) translate(0px,0px); user-select:none; -webkit-user-select:none; pointer-events:none;" onerror="this.src='/sar_samples/scenario_alpha_rogue_tanker.jpg'" />
+          <div style="position:absolute; bottom:12px; right:12px; display:flex; align-items:center; gap:4px; background:rgba(255,255,255,0.92); backdrop-filter:blur(12px); padding:4px 8px; border-radius:12px; border:1px solid rgba(0,0,0,0.1); font-size:12px; font-family:monospace; color:#262626; z-index:10; box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+            <button onclick="zoomEnlargedSar(0.25)" style="width:24px; height:24px; border-radius:8px; background:rgba(0,0,0,0.05); border:none; font-weight:700; cursor:pointer; font-size:14px;">+</button>
+            <button onclick="zoomEnlargedSar(-0.25)" style="width:24px; height:24px; border-radius:8px; background:rgba(0,0,0,0.05); border:none; font-weight:700; cursor:pointer; font-size:14px;">−</button>
+            <button onclick="resetEnlargedSarZoom()" style="padding:0 8px; height:24px; border-radius:8px; background:rgba(0,0,0,0.05); border:none; font-weight:700; cursor:pointer; font-size:10px;">Reset</button>
+          </div>
+        </div>
+      `;
+
+      mainEl.appendChild(panel);
+
+      // Close button
+      document.getElementById('sarEnlargedCloseBtn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeEnlargedSarPreview();
+      });
+
+      // Header drag (uses document-level mousemove via _sarEnlargedDragState)
       const header = document.getElementById('sarEnlargedHeader');
+      header.addEventListener('mousedown', (e) => {
+        if (e.target.tagName === 'BUTTON') return;
+        e.preventDefault();
+        e.stopPropagation();
+        header.style.cursor = 'grabbing';
+        _sarEnlargedDragState = {
+          startMouseX: e.clientX,
+          startMouseY: e.clientY,
+          startPanelX: enlargedViewState.posX,
+          startPanelY: enlargedViewState.posY
+        };
+      });
+
+      // Viewport image panning (uses document-level mousemove via _sarEnlargedPanState)
       const viewport = document.getElementById('sarEnlargedViewport');
-
-      let startMouseX = 0, startMouseY = 0, startPanelX = 0, startPanelY = 0;
-      header.addEventListener('pointerdown', (e) => {
-        enlargedViewState.isDraggingPanel = true;
-        startMouseX = e.clientX;
-        startMouseY = e.clientY;
-        startPanelX = enlargedViewState.posX;
-        startPanelY = enlargedViewState.posY;
-        header.setPointerCapture(e.pointerId);
+      viewport.addEventListener('mousedown', (e) => {
+        if (e.target.tagName === 'BUTTON') return;
+        e.preventDefault();
+        e.stopPropagation();
+        viewport.style.cursor = 'grabbing';
+        _sarEnlargedPanState = {
+          startPanX: e.clientX,
+          startPanY: e.clientY,
+          startImgPanX: enlargedViewState.panX,
+          startImgPanY: enlargedViewState.panY
+        };
       });
 
-      header.addEventListener('pointermove', (e) => {
-        if (!enlargedViewState.isDraggingPanel) return;
-        enlargedViewState.posX = startPanelX + (e.clientX - startMouseX);
-        enlargedViewState.posY = startPanelY + (e.clientY - startMouseY);
-        panel.style.left = `${enlargedViewState.posX}px`;
-        panel.style.top = `${enlargedViewState.posY}px`;
-      });
-
-      const stopPanelDrag = (e) => {
-        if (enlargedViewState.isDraggingPanel) {
-          enlargedViewState.isDraggingPanel = false;
-          try { header.releasePointerCapture(e.pointerId); } catch(err) {}
-        }
-      };
-      header.addEventListener('pointerup', stopPanelDrag);
-      header.addEventListener('pointercancel', stopPanelDrag);
-
+      // Scroll zoom on viewport
       viewport.addEventListener('wheel', (e) => {
         e.preventDefault();
         const delta = e.deltaY < 0 ? 0.2 : -0.2;
         zoomEnlargedSar(delta);
       }, { passive: false });
-
-      let startPanX = 0, startPanY = 0, startImgPanX = 0, startImgPanY = 0;
-      viewport.addEventListener('pointerdown', (e) => {
-        if (e.target.tagName === 'BUTTON') return;
-        enlargedViewState.isPanningImg = true;
-        startPanX = e.clientX;
-        startPanY = e.clientY;
-        startImgPanX = enlargedViewState.panX;
-        startImgPanY = enlargedViewState.panY;
-        viewport.setPointerCapture(e.pointerId);
-      });
-
-      viewport.addEventListener('pointermove', (e) => {
-        if (!enlargedViewState.isPanningImg) return;
-        enlargedViewState.panX = startImgPanX + (e.clientX - startPanX);
-        enlargedViewState.panY = startImgPanY + (e.clientY - startPanY);
-        updateEnlargedSarTransform();
-      });
-
-      const stopImgPan = (e) => {
-        if (enlargedViewState.isPanningImg) {
-          enlargedViewState.isPanningImg = false;
-          try { viewport.releasePointerCapture(e.pointerId); } catch(err) {}
-        }
-      };
-      viewport.addEventListener('pointerup', stopImgPan);
-      viewport.addEventListener('pointercancel', stopImgPan);
     }
 
     function zoomEnlargedSar(delta) {
@@ -3263,12 +3355,13 @@
     }
 
     function closeEnlargedSarPreview() {
-      const container = document.getElementById('sarEnlargedPreviewContainer');
-      if (container) {
-        container.classList.add('hidden');
-        container.innerHTML = '';
+      const panel = document.getElementById('sarEnlargedPanel');
+      if (panel && panel.parentNode) {
+        panel.parentNode.removeChild(panel);
       }
       enlargedViewState.isOpen = false;
+      _sarEnlargedDragState = null;
+      _sarEnlargedPanState = null;
     }
 
   </script>
