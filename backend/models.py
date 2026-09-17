@@ -64,6 +64,49 @@ class SARImageMetadata(BaseModel):
     acquisition_time: str
     bounds: List[List[float]]  # [[min_lat, min_lng], [max_lat, max_lng]]
     resolution_m: float = 10.0
+    image_url: Optional[str] = None
+
+class BehavioralAnomaly(BaseModel):
+    anomaly_type: str  # "AIS_GAP", "SPEED_DROP", "COURSE_INSTABILITY", "LOITERING", "NIGHTTIME_OP"
+    severity: str  # "CRITICAL", "HIGH", "MEDIUM", "LOW"
+    description: str
+    timestamp: str
+    duration_mins: Optional[float] = None
+
+class BehavioralProfile(BaseModel):
+    mmsi: int
+    vessel_name: str
+    behavioral_risk_score: float  # 0.0 - 100.0%
+    risk_level: str  # "CRITICAL_WATCHLIST", "ELEVATED_RISK", "NOMINAL"
+    is_watchlist_target: bool = False
+    anomalies: List[BehavioralAnomaly] = []
+    summary_notes: List[str] = []
+
+class HistoricalIncident(BaseModel):
+    incident_id: str
+    timestamp: str
+    location_name: str
+    region: str
+    lat: float
+    lng: float
+    estimated_volume_m3: float
+    spill_type: str
+    enforcement_action: str
+    evidence_source: str
+
+class RepeatOffenderProfile(BaseModel):
+    mmsi: int
+    vessel_name: str
+    ship_type: str
+    flag: str
+    total_incidents_logged: int
+    serial_offender_level: str  # "SERIAL OFFENDER (LEVEL 3 - CRITICAL)", "RECURRING SUSPECT (LEVEL 2)", "FIRST-TIME INCIDENT (LEVEL 1)", "CLEARED"
+    is_serial_offender: bool = False
+    prosecution_priority: str  # "PRIORITY 1 - IMMEDIATE PORT STATE ARREST", "PRIORITY 2 - FLAG STATE NOTIFICATION", "MONITORING"
+    historical_incidents: List[HistoricalIncident] = []
+    active_scenario_matches: List[str] = []
+    recommended_interception_protocol: str
+
 
 class CulpritMatch(BaseModel):
     mmsi: int
@@ -75,11 +118,13 @@ class CulpritMatch(BaseModel):
     speed_anomaly_score: float  # 0 - 100%
     vessel_type_score: float  # 0 - 100%
     alignment_score: float  # 0 - 100%
+    behavioral_score: float = 0.0  # 0 - 100%
     closest_approach_distance_km: float
     closest_approach_time: str
     rank: int
     verdict: str  # "PRIMARY SUSPECT", "POTENTIAL CONTRIBUTOR", "CLEARED"
     evidence_notes: List[str]
+    behavioral_anomalies: List[str] = []
 
 class ScenarioData(BaseModel):
     id: str
@@ -92,3 +137,4 @@ class ScenarioData(BaseModel):
     vessels: List[VesselTrack]
     drift_origin_cone: Dict[str, Any]  # GeoJSON Polygon representing probable back-tracked source
     culprits: List[CulpritMatch]
+
