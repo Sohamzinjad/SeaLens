@@ -19,6 +19,9 @@ from backend.services.dark_vessel_engine import DarkVesselEngine
 from backend.services.ocean_grid_engine import DynamicOceanGridEngine
 from backend.services.weathering_engine import OilWeatheringEngine
 from backend.services.landfall_predictor import CoastalLandfallPredictor
+from backend.services.behavioral_anomaly_engine import BehavioralAnomalyEngine
+from backend.services.repeat_offender_engine import RepeatOffenderEngine
+from backend.services.intelligence_brief_generator import generate_intelligence_brief
 from ml_engine.sar_detector import SAROilSpillDetector
 from ml_engine.geotiff_processor import GeoTIFFProcessor
 from ml_engine.cfar_ship_detector import CACFARShipDetector
@@ -57,7 +60,10 @@ app.add_middleware(
 
 drift_engine = DriftEngine()
 correlation_engine = AISCorrelationEngine()
+behavioral_engine = BehavioralAnomalyEngine()
+repeat_offender_engine = RepeatOffenderEngine()
 sar_detector = SAROilSpillDetector()
+
 geotiff_processor = GeoTIFFProcessor()
 cfar_detector = CACFARShipDetector()
 dark_vessel_engine = DarkVesselEngine()
@@ -306,10 +312,89 @@ def get_weathering_timeline(scenario_id: str):
         "timeline": timeline
     }
 
+@app.get("/api/behavioral_watchlist/{scenario_id}")
+def get_behavioral_watchlist(scenario_id: str):
+    """
+    Analyzes all vessel telemetry tracks in a scenario to generate a
+    Pre-Incident Maritime Risk Watchlist based on AIS gap blackouts, speed drops, and course shifts.
+    """
+    if scenario_id not in SCENARIOS:
+        raise HTTPException(status_code=404, detail=f"Scenario '{scenario_id}' not found")
+    sc = SCENARIOS[scenario_id]
+
+    profiles = []
+    watchlist_count = 0
+
+    for v in sc.vessels:
+        prof = behavioral_engine.analyze_vessel_track(v)
+        profiles.append(prof)
+        if prof.is_watchlist_target:
+            watchlist_count += 1
+
+    # Sort profiles descending by risk score
+    profiles.sort(key=lambda p: p.behavioral_risk_score, reverse=True)
+
+    return {
+        "scenario_id": scenario_id,
+        "vessels_scanned_count": len(sc.vessels),
+        "watchlist_targets_count": watchlist_count,
+        "profiles": profiles
+    }
+
+@app.get("/api/vessel_profile/{mmsi}")
+def get_vessel_behavioral_profile(mmsi: int):
+    """
+    Retrieves detailed behavioral profile and anomaly breakdown for a specific MMSI.
+    """
+    found_track = None
+    for sc in SCENARIOS.values():
+        for v in sc.vessels:
+            if v.metadata.mmsi == mmsi:
+                found_track = v
+                break
+        if found_track:
+            break
+
+    if not found_track:
+        raise HTTPException(status_code=404, detail=f"Vessel with MMSI '{mmsi}' not found in tracking dataset")
+
+    prof = behavioral_engine.analyze_vessel_track(found_track)
+    return prof
+
+@app.get("/api/repeat_offender/{mmsi}")
+def get_repeat_offender_profile(mmsi: int):
+    """
+    Cross-references a vessel's MMSI across multi-incident satellite datasets and historical maritime
+    enforcement logs to generate a Serial Offender intelligence profile.
+    """
+    profile = repeat_offender_engine.get_profile(mmsi, active_scenarios=SCENARIOS)
+    return profile
+
+@app.get("/api/intelligence_brief/{scenario_id}")
+def get_intelligence_brief(scenario_id: str):
+    """
+    Generates an analyst-grade NTRO Intelligence Cable synthesizing SAR radar observations,
+    drift backtracks, behavioral anomalies, and serial polluter intelligence.
+    """
+    if scenario_id not in SCENARIOS:
+        raise HTTPException(status_code=404, detail=f"Scenario '{scenario_id}' not found")
+    sc = SCENARIOS[scenario_id]
+    brief = generate_intelligence_brief(sc)
+    return brief
+
 # Mount static frontend files if directory exists
-frontend_dir = os.path.join(os.path.dirname(__file__), "..", "frontend")
+
+frontend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
 if os.path.exists(frontend_dir):
     app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
+    
+    public_dir = os.path.join(frontend_dir, "public")
+    if os.path.exists(public_dir):
+        app.mount("/public", StaticFiles(directory=public_dir), name="public")
+        sar_dir = os.path.join(public_dir, "sar_samples")
+        if os.path.exists(sar_dir):
+            app.mount("/sar_samples", StaticFiles(directory=sar_dir), name="sar_samples")
+
 
 @app.get("/")
 def serve_landing_page():
