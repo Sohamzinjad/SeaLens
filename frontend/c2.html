@@ -223,6 +223,59 @@
       border-left-color: rgba(15, 23, 42, 0.94) !important;
     }
 
+    /* ──────────────────────────────────────────
+       PURE VISUAL SAR INTELLIGENCE POPUP ARTIFACT
+    ────────────────────────────────────────── */
+    .sar-pure-card {
+      width: 252px;
+      height: 164px;
+      border-radius: 16px;
+      border: 2.5px solid rgba(217, 221, 227, 0.55);
+      background: rgba(15, 23, 42, 0.72);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+      padding: 6px;
+      overflow: hidden;
+      transition: opacity 180ms ease, transform 180ms ease, border-color 200ms ease, box-shadow 200ms ease;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .sar-pure-card:hover {
+      border-color: rgba(255, 255, 255, 0.75);
+      box-shadow: 0 16px 40px -4px rgba(0, 0, 0, 0.40), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    }
+    .sar-pure-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 10px;
+      display: block;
+      transition: transform 300ms ease;
+    }
+    .sar-pure-card:hover img {
+      transform: scale(1.03);
+    }
+
+    /* Enlarged Floating SAR Preview Panel */
+    .sar-enlarged-panel {
+      width: 552px;
+      height: 372px;
+      max-width: 90vw;
+      max-height: 80vh;
+      border-radius: 20px;
+      border: 3px solid rgba(217, 221, 227, 0.55);
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      box-shadow: 0 25px 65px -10px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.20);
+      padding: 6px;
+      overflow: hidden;
+      transition: opacity 180ms cubic-bezier(0.16, 1, 0.3, 1), transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+
+
 
     /* ──────────────────────────────────────────
        SCROLLBAR
@@ -469,6 +522,12 @@
 
     <!-- RADIAL MAP VIGNETTE -->
     <div class="map-vignette"></div>
+
+    <!-- SAR LEADER LINES & PURE VISUAL POPUPS OVERLAY CONTAINER -->
+    <svg id="sarLeaderLinesSvg" class="absolute inset-0 w-full h-full pointer-events-none z-20"></svg>
+    <div id="sarPurePopupsContainer" class="absolute inset-0 w-full h-full pointer-events-none z-30"></div>
+    <div id="sarEnlargedPreviewContainer" class="absolute inset-0 w-full h-full pointer-events-none z-40 hidden"></div>
+
 
     <!-- FLOATING SURVEILLANCE OVERLAY CARD -->
     <aside class="sidebar p-5 space-y-3.5 overflow-y-auto custom-scrollbar">
@@ -1148,6 +1207,10 @@
       bearing: -15
     });
 
+    map.on('move', () => updateSarPopupsPositions());
+    map.on('resize', () => updateSarPopupsPositions());
+
+
     let currentScenarioData = null;
     let activeMarkers = [];
     let activeVesselList = [];
@@ -1790,52 +1853,9 @@
         }
         renderOceanVectorStreamlines(cLng, cLat, data.environmental?.current_direction_deg, data.environmental?.current_speed_ms, data.environmental?.wind_direction_deg, data.environmental?.wind_speed_ms);
 
-        // 4.5. Floating Actual SAR Satellite Image Popup Card anchored at Oil Spill Centroid
+        // 4.5. Floating Actual SAR Satellite Image Pure Visual Artifact Card anchored at Oil Spill Centroid
         const sarImgUrl = data.sar_image?.image_url || `/sar_samples/${data.id}.jpg`;
-        const popupContent = `
-          <div onclick="openSatelliteModal()" class="group relative overflow-hidden rounded-2xl border border-white/20 p-2.5 shadow-2xl transition-all duration-300 hover:scale-[1.02] hover:border-cyan-400/50 cursor-pointer max-w-[230px]" style="background: rgba(15, 23, 42, 0.94); backdrop-filter: blur(24px); color: white;">
-            <div class="flex items-center justify-between gap-2 mb-2">
-              <div class="flex items-center gap-1.5">
-                <span class="relative flex h-2 w-2">
-                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-                  <span class="relative inline-flex rounded-full h-2 w-2 bg-cyan-400"></span>
-                </span>
-                <span class="text-[9.5px] font-mono font-bold tracking-wider text-slate-200 uppercase">Sentinel-1 SAR</span>
-              </div>
-              <span class="text-[8.5px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">10m RES</span>
-            </div>
-            
-            <div class="relative w-full h-28 rounded-xl overflow-hidden border border-slate-800 bg-slate-950 group-hover:border-slate-700 transition-colors shadow-inner">
-              <img src="${sarImgUrl}" alt="SAR Satellite Scene" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onerror="this.src='/sar_samples/scenario_alpha_rogue_tanker.jpg'" />
-              <div class="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-transparent to-transparent"></div>
-              
-              <div class="absolute bottom-1.5 left-2 right-2 flex justify-between items-center text-[8.5px] font-mono">
-                <span class="px-1.5 py-0.5 rounded bg-slate-900/80 backdrop-blur-md text-slate-300 border border-slate-700/60 font-medium">Damping: ${primarySlick.radar_damping_db || 9.2} dB</span>
-                <span class="px-1.5 py-0.5 rounded bg-indigo-600/90 text-white font-bold shadow-sm flex items-center gap-0.5">Inspect 🔍</span>
-              </div>
-            </div>
-
-            <div class="flex justify-between items-center text-[9.5px] font-mono pt-2 text-slate-300">
-              <div class="flex items-center gap-1">
-                <span class="text-slate-400">Area:</span>
-                <span class="font-bold text-rose-400">${primarySlick.area_sqkm} km²</span>
-              </div>
-              <span class="px-1.5 py-0.5 rounded text-[8.5px] font-bold ${primarySlick.is_lookalike ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'}">
-                ${primarySlick.is_lookalike ? 'FALSE POSITIVE' : 'CONFIRMED SPILL'}
-              </span>
-            </div>
-          </div>
-        `;
-
-        const slickPopup = new maplibregl.Popup({
-          offset: [0, -10],
-          closeButton: false,
-          closeOnClick: false,
-          anchor: 'bottom'
-        }).setLngLat([cLng, cLat])
-          .setHTML(popupContent);
-
-        slickPopup.addTo(map);
+        createPureSarPopup(data.id, cLng, cLat, sarImgUrl);
 
         const pinNode = document.createElement('div');
         pinNode.className = 'w-4 h-4 rounded-full bg-cyan-400 border-2 border-white shadow-lg animate-ping cursor-pointer';
@@ -2976,6 +2996,272 @@
         console.error("Intel brief fetch error:", err);
       }
     }
+
+    /* ──────────────────────────────────────────
+       PURE VISUAL SAR INTELLIGENCE POPUPS SYSTEM
+    ────────────────────────────────────────── */
+    let activeSarPopups = [];
+    let enlargedViewState = {
+      isOpen: false,
+      scale: 1.0,
+      panX: 0,
+      panY: 0,
+      posX: 0,
+      posY: 0,
+      isDraggingPanel: false,
+      isPanningImg: false
+    };
+
+    function clearPureSarPopups() {
+      const container = document.getElementById('sarPurePopupsContainer');
+      if (container) container.innerHTML = '';
+      const svg = document.getElementById('sarLeaderLinesSvg');
+      if (svg) svg.innerHTML = '';
+      activeSarPopups = [];
+    }
+
+    function createPureSarPopup(id, lng, lat, sarImgUrl) {
+      clearPureSarPopups();
+
+      const container = document.getElementById('sarPurePopupsContainer');
+      if (!container || !map) return;
+
+      const popupObj = {
+        id,
+        lng,
+        lat,
+        sarImgUrl,
+        offset: { x: 140, y: -75 },
+        element: null
+      };
+
+      const card = document.createElement('div');
+      card.id = `sarPureCard_${id}`;
+      card.className = 'sar-pure-card absolute pointer-events-auto cursor-grab active:cursor-grabbing';
+      card.style.left = '0px';
+      card.style.top = '0px';
+      card.style.opacity = '0';
+      card.style.transform = 'translateY(8px)';
+
+      card.innerHTML = `
+        <img src="${sarImgUrl}" alt="SAR Visual Intelligence Artifact" class="w-full h-full object-cover select-none cursor-pointer" onerror="this.src='/sar_samples/scenario_alpha_rogue_tanker.jpg'" />
+      `;
+
+      const img = card.querySelector('img');
+      img.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openEnlargedSarPreview(sarImgUrl);
+      });
+
+      let isDragging = false;
+      let startMouseX = 0, startMouseY = 0;
+      let startOffsetX = 0, startOffsetY = 0;
+
+      card.addEventListener('pointerdown', (e) => {
+        isDragging = true;
+        card.classList.remove('cursor-grab');
+        card.classList.add('cursor-grabbing');
+        startMouseX = e.clientX;
+        startMouseY = e.clientY;
+        startOffsetX = popupObj.offset.x;
+        startOffsetY = popupObj.offset.y;
+        card.setPointerCapture(e.pointerId);
+      });
+
+      card.addEventListener('pointermove', (e) => {
+        if (!isDragging) return;
+        const dx = e.clientX - startMouseX;
+        const dy = e.clientY - startMouseY;
+        popupObj.offset.x = startOffsetX + dx;
+        popupObj.offset.y = startOffsetY + dy;
+        updateSarPopupsPositions();
+      });
+
+      const stopDrag = (e) => {
+        if (!isDragging) return;
+        isDragging = false;
+        card.classList.remove('cursor-grabbing');
+        card.classList.add('cursor-grab');
+        try { card.releasePointerCapture(e.pointerId); } catch(err) {}
+      };
+
+      card.addEventListener('pointerup', stopDrag);
+      card.addEventListener('pointercancel', stopDrag);
+
+      container.appendChild(card);
+      popupObj.element = card;
+      activeSarPopups.push(popupObj);
+
+      requestAnimationFrame(() => {
+        updateSarPopupsPositions();
+        card.style.opacity = '1';
+        card.style.transform = 'translateY(0)';
+      });
+    }
+
+    function updateSarPopupsPositions() {
+      if (!map) return;
+      const svg = document.getElementById('sarLeaderLinesSvg');
+      let svgHtml = '';
+
+      activeSarPopups.forEach(popup => {
+        if (!popup.element) return;
+        const originPos = map.project([popup.lng, popup.lat]);
+        const cardX = originPos.x + popup.offset.x;
+        const cardY = originPos.y + popup.offset.y;
+
+        popup.element.style.left = `${cardX}px`;
+        popup.element.style.top = `${cardY}px`;
+
+        const cardW = 252;
+        const cardH = 164;
+
+        const targetX = cardX < originPos.x ? cardX + cardW : cardX;
+        const targetY = cardY + cardH / 2;
+
+        svgHtml += `
+          <circle cx="${originPos.x}" cy="${originPos.y}" r="3.5" fill="rgba(56, 189, 248, 0.9)" stroke="rgba(255, 255, 255, 0.9)" stroke-width="1.2" />
+          <line x1="${originPos.x}" y1="${originPos.y}" x2="${targetX}" y2="${targetY}" stroke="rgba(217, 221, 227, 0.50)" stroke-width="1.2" stroke-dasharray="3 3" />
+        `;
+      });
+
+      if (svg) svg.innerHTML = svgHtml;
+    }
+
+    function openEnlargedSarPreview(imgUrl) {
+      const container = document.getElementById('sarEnlargedPreviewContainer');
+      if (!container) return;
+
+      const initX = Math.max(20, Math.round(window.innerWidth / 2 - 270));
+      const initY = Math.max(20, Math.round(window.innerHeight / 2 - 180));
+
+      container.classList.remove('hidden');
+      container.innerHTML = `
+        <div id="sarEnlargedPanel" class="sar-enlarged-panel absolute pointer-events-auto flex flex-col overflow-hidden" style="left: ${initX}px; top: ${initY}px;">
+          <div id="sarEnlargedHeader" class="h-8 px-3 flex items-center justify-between cursor-grab active:cursor-grabbing bg-slate-900/80 border-b border-white/10 select-none">
+            <span class="text-[10px] font-mono font-semibold text-slate-300 tracking-wider uppercase flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+              SAR Visual Intelligence Preview
+            </span>
+            <button onclick="closeEnlargedSarPreview()" class="w-5 h-5 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center transition-colors text-xs font-bold">×</button>
+          </div>
+          
+          <div id="sarEnlargedViewport" class="relative flex-1 bg-slate-950 overflow-hidden flex items-center justify-center cursor-grab active:cursor-grabbing">
+            <img id="sarEnlargedImg" src="${imgUrl}" alt="Enlarged SAR Image" class="max-w-none transition-transform duration-75 select-none" style="transform: scale(1) translate(0px, 0px); width: 100%; height: 100%; object-fit: contain;" onerror="this.src='/sar_samples/scenario_alpha_rogue_tanker.jpg'" />
+            
+            <div class="absolute bottom-3 right-3 flex items-center gap-1 bg-slate-900/80 backdrop-blur-md px-2 py-1 rounded-xl border border-white/15 text-xs font-mono text-slate-200 z-10 shadow-lg pointer-events-auto">
+              <button onclick="zoomEnlargedSar(0.25)" class="w-6 h-6 rounded-lg bg-white/10 hover:bg-white/20 font-bold flex items-center justify-center transition-colors">+</button>
+              <button onclick="zoomEnlargedSar(-0.25)" class="w-6 h-6 rounded-lg bg-white/10 hover:bg-white/20 font-bold flex items-center justify-center transition-colors">-</button>
+              <button onclick="resetEnlargedSarZoom()" class="px-2 h-6 rounded-lg bg-white/10 hover:bg-white/20 font-medium text-[10px] flex items-center justify-center transition-colors">Reset</button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      enlargedViewState = {
+        isOpen: true,
+        scale: 1.0,
+        panX: 0,
+        panY: 0,
+        posX: initX,
+        posY: initY,
+        isDraggingPanel: false,
+        isPanningImg: false
+      };
+
+      const panel = document.getElementById('sarEnlargedPanel');
+      const header = document.getElementById('sarEnlargedHeader');
+      const viewport = document.getElementById('sarEnlargedViewport');
+
+      let startMouseX = 0, startMouseY = 0, startPanelX = 0, startPanelY = 0;
+      header.addEventListener('pointerdown', (e) => {
+        enlargedViewState.isDraggingPanel = true;
+        startMouseX = e.clientX;
+        startMouseY = e.clientY;
+        startPanelX = enlargedViewState.posX;
+        startPanelY = enlargedViewState.posY;
+        header.setPointerCapture(e.pointerId);
+      });
+
+      header.addEventListener('pointermove', (e) => {
+        if (!enlargedViewState.isDraggingPanel) return;
+        enlargedViewState.posX = startPanelX + (e.clientX - startMouseX);
+        enlargedViewState.posY = startPanelY + (e.clientY - startMouseY);
+        panel.style.left = `${enlargedViewState.posX}px`;
+        panel.style.top = `${enlargedViewState.posY}px`;
+      });
+
+      const stopPanelDrag = (e) => {
+        if (enlargedViewState.isDraggingPanel) {
+          enlargedViewState.isDraggingPanel = false;
+          try { header.releasePointerCapture(e.pointerId); } catch(err) {}
+        }
+      };
+      header.addEventListener('pointerup', stopPanelDrag);
+      header.addEventListener('pointercancel', stopPanelDrag);
+
+      viewport.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = e.deltaY < 0 ? 0.2 : -0.2;
+        zoomEnlargedSar(delta);
+      }, { passive: false });
+
+      let startPanX = 0, startPanY = 0, startImgPanX = 0, startImgPanY = 0;
+      viewport.addEventListener('pointerdown', (e) => {
+        if (e.target.tagName === 'BUTTON') return;
+        enlargedViewState.isPanningImg = true;
+        startPanX = e.clientX;
+        startPanY = e.clientY;
+        startImgPanX = enlargedViewState.panX;
+        startImgPanY = enlargedViewState.panY;
+        viewport.setPointerCapture(e.pointerId);
+      });
+
+      viewport.addEventListener('pointermove', (e) => {
+        if (!enlargedViewState.isPanningImg) return;
+        enlargedViewState.panX = startImgPanX + (e.clientX - startPanX);
+        enlargedViewState.panY = startImgPanY + (e.clientY - startPanY);
+        updateEnlargedSarTransform();
+      });
+
+      const stopImgPan = (e) => {
+        if (enlargedViewState.isPanningImg) {
+          enlargedViewState.isPanningImg = false;
+          try { viewport.releasePointerCapture(e.pointerId); } catch(err) {}
+        }
+      };
+      viewport.addEventListener('pointerup', stopImgPan);
+      viewport.addEventListener('pointercancel', stopImgPan);
+    }
+
+    function zoomEnlargedSar(delta) {
+      enlargedViewState.scale = Math.min(Math.max(0.8, enlargedViewState.scale + delta), 4.0);
+      updateEnlargedSarTransform();
+    }
+
+    function resetEnlargedSarZoom() {
+      enlargedViewState.scale = 1.0;
+      enlargedViewState.panX = 0;
+      enlargedViewState.panY = 0;
+      updateEnlargedSarTransform();
+    }
+
+    function updateEnlargedSarTransform() {
+      const img = document.getElementById('sarEnlargedImg');
+      if (img) {
+        img.style.transform = `scale(${enlargedViewState.scale}) translate(${enlargedViewState.panX / enlargedViewState.scale}px, ${enlargedViewState.panY / enlargedViewState.scale}px)`;
+      }
+    }
+
+    function closeEnlargedSarPreview() {
+      const container = document.getElementById('sarEnlargedPreviewContainer');
+      if (container) {
+        container.classList.add('hidden');
+        container.innerHTML = '';
+      }
+      enlargedViewState.isOpen = false;
+    }
+
   </script>
 </body>
 </html>
