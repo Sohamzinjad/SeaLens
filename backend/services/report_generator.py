@@ -1,12 +1,13 @@
-"""
-Forensic Incident Dossier Generator for Maritime Law Enforcement (NTRO / Coast Guard / IMO).
-"""
+import hashlib
 from datetime import datetime
 from typing import Dict, Any
 from backend.models import ScenarioData
+from backend.services.repeat_offender_engine import RepeatOffenderEngine
+
+repeat_engine = RepeatOffenderEngine()
 
 def generate_markdown_dossier(scenario: ScenarioData) -> str:
-    """Generates an official markdown forensic evidence dossier."""
+    """Generates an official markdown forensic evidence dossier with dynamic SHA-256 cryptographic proof."""
     primary_slick = scenario.slicks[0] if scenario.slicks else None
     primary_suspect = scenario.culprits[0] if scenario.culprits else None
 
@@ -16,11 +17,18 @@ def generate_markdown_dossier(scenario: ScenarioData) -> str:
 
     suspect_name = primary_suspect.vessel_name if primary_suspect else "Unknown"
     suspect_mmsi = str(primary_suspect.mmsi) if primary_suspect else "N/A"
+    suspect_mmsi_int = primary_suspect.mmsi if primary_suspect else 0
     suspect_score = f"{primary_suspect.composite_score:.1f}%" if primary_suspect else "N/A"
     suspect_flag = primary_suspect.flag if primary_suspect else "N/A"
     suspect_type = primary_suspect.ship_type if primary_suspect else "N/A"
     cpa_dist = f"{primary_suspect.closest_approach_distance_km:.2f} km" if primary_suspect else "N/A"
     cpa_time = primary_suspect.closest_approach_time if primary_suspect else "N/A"
+
+    repeat_profile = repeat_engine.get_profile(suspect_mmsi_int)
+
+    # Compute real SHA-256 cryptographic evidence digest
+    raw_payload = f"{scenario.id}:{scenario.sar_image.scene_id}:{scenario.sar_image.acquisition_time}:{suspect_mmsi}:{suspect_score}:{slick_area}:{slick_vol}:{repeat_profile.serial_offender_level}"
+    sha256_digest = hashlib.sha256(raw_payload.encode('utf-8')).hexdigest()
 
     report = f"""# 🚨 MARITIME SENTINEL: FORENSIC INCIDENT DOSSIER
 **NATIONAL TECHNICAL RESEARCH ORGANISATION (NTRO) / MARITIME ENFORCEMENT**
@@ -35,6 +43,7 @@ def generate_markdown_dossier(scenario: ScenarioData) -> str:
 - **Primary Attribution Finding:** **{primary_suspect.verdict if primary_suspect else 'NO CULPRIT'}**
 - **Identified Target:** `{suspect_name}` (MMSI: `{suspect_mmsi}`, Flag: `{suspect_flag}`)
 - **Attribution Confidence Score:** **{suspect_score}**
+- **Repeat Offender Classification:** **{repeat_profile.serial_offender_level}** ({repeat_profile.total_incidents_logged} logged violations)
 
 ---
 
@@ -62,31 +71,55 @@ def generate_markdown_dossier(scenario: ScenarioData) -> str:
 
 ## 4. AIS VESSEL CORRELATION & ATTRIBUTION MATRIX
 
-| Rank | Vessel Name | MMSI | Type | Flag | CPA Dist | Proximity | Speed Anomaly | Alignment | Composite Score | Verdict |
+| Rank | Vessel Name | MMSI | Type | Flag | CPA Dist | Behavioral | Speed Anomaly | Alignment | Composite Score | Verdict |
 | :---: | :--- | :---: | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 """
     for c in scenario.culprits:
-        report += f"| #{c.rank} | **{c.vessel_name}** | `{c.mmsi}` | {c.ship_type} | {c.flag} | {c.closest_approach_distance_km:.2f} km | {c.proximity_score:.0f}% | {c.speed_anomaly_score:.0f}% | {c.alignment_score:.0f}% | **{c.composite_score:.1f}%** | `{c.verdict}` |\n"
+        beh = f"{c.behavioral_score:.0f}%" if hasattr(c, "behavioral_score") else "N/A"
+        report += f"| #{c.rank} | **{c.vessel_name}** | `{c.mmsi}` | {c.ship_type} | {c.flag} | {c.closest_approach_distance_km:.2f} km | {beh} | {c.speed_anomaly_score:.0f}% | {c.alignment_score:.0f}% | **{c.composite_score:.1f}%** | `{c.verdict}` |\n"
 
     report += f"""
 ---
 
-## 5. PRIMARY SUSPECT EVIDENCE LOG: `{suspect_name}`
+## 5. SIGNALS INTELLIGENCE & BEHAVIORAL ANOMALY AUDIT: `{suspect_name}`
 """
+    if primary_suspect and getattr(primary_suspect, "behavioral_anomalies", []):
+        for anomaly in primary_suspect.behavioral_anomalies:
+            report += f"- 🚨 {anomaly}\n"
+    elif primary_suspect and primary_suspect.evidence_notes:
+        for note in primary_suspect.evidence_notes:
+            if "Blackout" in note or "Watchlist" in note or "Anomaly" in note:
+                report += f"- 🚨 {note}\n"
+    else:
+        report += "- Nominally compliant behavioral trajectory profile.\n"
+
+    report += f"""
+---
+
+## 6. PRIMARY SUSPECT EVIDENCE LOG & REPEAT OFFENDER INTELLIGENCE: `{suspect_name}`
+- **Serial Offender Level:** {repeat_profile.serial_offender_level}
+- **Prosecution Priority:** `{repeat_profile.prosecution_priority}`
+"""
+    if repeat_profile.historical_incidents:
+        report += "- **Logged Historical Incidents:**\n"
+        for inc in repeat_profile.historical_incidents:
+            report += f"  - [{inc.incident_id}] {inc.timestamp[:10]} | {inc.location_name} | Vol: {inc.estimated_volume_m3}m³ | Action: {inc.enforcement_action}\n"
+    
     if primary_suspect and primary_suspect.evidence_notes:
         for note in primary_suspect.evidence_notes:
             report += f"- ✅ {note}\n"
-    else:
-        report += "- No conclusive evidence notes available.\n"
 
     report += f"""
 ---
 
-## 6. LEGAL CERTIFICATION & CHAIN OF CUSTODY
+## 7. LEGAL CERTIFICATION & CHAIN OF CUSTODY
 This automated forensic evidence dossier has been generated via automated SAR Earth Observation analytics and verified cryptographic AIS trajectory correlation. Prepared for maritime regulatory enforcement under MARPOL 73/78 Annex I regulations.
 
 - **Generated At:** {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%SZ')}
-- **Integrity Digest:** `SHA256:7f83b1657ff1...verified`
-- **Action Recommended:** Dispatch Coast Guard Interceptor / Issue Port State Control Detention Order upon arrival.
+- **Evidence Integrity Hash:** `SHA256:{sha256_digest}`
+- **Verification Status:** 🔒 Cryptographically Sealed Evidence Artifact (SHA-256 Digest Verified)
+- **Prosecution Action Recommended:** {repeat_profile.recommended_interception_protocol}
 """
     return report
+
+

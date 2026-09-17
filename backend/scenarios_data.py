@@ -36,7 +36,8 @@ def build_scenario_alpha() -> ScenarioData:
         polarization="VV + VH",
         acquisition_time="2026-09-01T06:00:00Z",
         bounds=[[18.70, 72.25], [19.00, 72.60]],
-        resolution_m=10.0
+        resolution_m=10.0,
+        image_url="/sar_samples/scenario_alpha_rogue_tanker.jpg"
     )
 
     # Detected slick coordinates at 06:00 UTC (after 3.5 hrs of drift)
@@ -95,9 +96,10 @@ def build_scenario_alpha() -> ScenarioData:
                 risk_weight=1.5
             ),
             positions=[
-                TelemetryPoint(timestamp="2026-09-01T01:30:00Z", lat=18.780, lng=72.290, sog=13.5, cog=48.0, heading=48.0, nav_status="Under way using engine"),
-                TelemetryPoint(timestamp="2026-09-01T02:00:00Z", lat=18.802, lng=72.320, sog=11.2, cog=50.0, heading=49.0, nav_status="Under way using engine"),
-                # Critical discharge window: speed drops to 5.2 knots, exactly on backtracked origin!
+                TelemetryPoint(timestamp="2026-09-01T01:15:00Z", lat=18.750, lng=72.260, sog=14.1, cog=48.0, heading=48.0, nav_status="Under way using engine"),
+                TelemetryPoint(timestamp="2026-09-01T01:45:00Z", lat=18.795, lng=72.310, sog=13.2, cog=50.0, heading=49.0, nav_status="Under way using engine"),
+                # 🚨 45-MINUTE AIS TRANSPONDER BLACKOUT GAP (01:45 to 02:30 UTC) - Going dark prior to dumping slops!
+                # Critical discharge window: transponder turns back on, speed drops to 5.2 knots, exactly on backtracked origin!
                 TelemetryPoint(timestamp="2026-09-01T02:30:00Z", lat=origin_lat, lng=origin_lng, sog=5.2, cog=52.0, heading=51.0, nav_status="Under way using engine"),
                 TelemetryPoint(timestamp="2026-09-01T03:00:00Z", lat=18.840, lng=72.378, sog=6.8, cog=50.0, heading=50.0, nav_status="Under way using engine"),
                 TelemetryPoint(timestamp="2026-09-01T03:30:00Z", lat=18.875, lng=72.420, sog=12.8, cog=48.0, heading=48.0, nav_status="Under way using engine"),
@@ -189,7 +191,8 @@ def build_scenario_beta() -> ScenarioData:
         polarization="VV + VH",
         acquisition_time="2026-09-01T04:15:00Z",
         bounds=[[1.15, 103.70], [1.35, 104.05]],
-        resolution_m=10.0
+        resolution_m=10.0,
+        image_url="/sar_samples/scenario_beta_singapore_strait.jpg"
     )
 
     slick_coords = [
@@ -331,7 +334,8 @@ def build_scenario_gamma() -> ScenarioData:
         polarization="VV + VH",
         acquisition_time="2026-09-01T08:00:00Z",
         bounds=[[13.20, 80.80], [13.60, 81.40]],
-        resolution_m=10.0
+        resolution_m=10.0,
+        image_url="/sar_samples/scenario_gamma_lookalike.jpg"
     )
 
     slick_coords = [
@@ -410,8 +414,431 @@ def build_scenario_gamma() -> ScenarioData:
         culprits=culprits
     )
 
+def build_scenario_delta() -> ScenarioData:
+    """
+    Scenario Delta: Coastal SPM Pipeline Breach & Reef Threat (Gulf of Kutch, Gujarat)
+    A 333m Supertanker (VLCC MT Al-Zubarah) unloads at Vadinar Single Point Mooring (SPM).
+    A subsea flexible hose leak releases heavy crude, drifting ENE toward Marine National Park.
+    """
+    env = EnvironmentalCondition(
+        wind_speed_ms=7.8,
+        wind_direction_deg=235.0,
+        current_speed_ms=0.85,
+        current_direction_deg=70.0,
+        sea_state=3,
+        surface_temp_c=29.8
+    )
+
+    sar_meta = SARImageMetadata(
+        scene_id="S1C_IW_GRDH_1SDV_20260902T051200_GULF_KUTCH",
+        satellite="Sentinel-1C C-Band SAR",
+        mode="IW (Interferometric Wide)",
+        polarization="VV + VH",
+        acquisition_time="2026-09-02T05:12:00Z",
+        bounds=[[22.35, 69.45], [22.65, 69.80]],
+        resolution_m=10.0,
+        image_url="/sar_samples/scenario_delta_gulf_of_kutch.jpg"
+    )
+
+    slick_coords = [
+        [69.600, 22.490],
+        [69.625, 22.505],
+        [69.645, 22.518],
+        [69.640, 22.525],
+        [69.615, 22.512],
+        [69.595, 22.498],
+        [69.600, 22.490]
+    ]
+
+    slick_specs = [{
+        "polygon_coords": slick_coords,
+        "radar_damping_db": 11.4,
+        "edge_sharpness": 0.92,
+        "thickness_microns": 4.5
+    }]
+
+    slicks_dict = detector.process_sar_scene(
+        scene_id=sar_meta.scene_id,
+        base_lat=22.508,
+        base_lng=69.620,
+        wind_speed_ms=env.wind_speed_ms,
+        slick_specs=slick_specs
+    )
+    slicks = [SlickPolygon(**s) for s in slicks_dict]
+
+    origin_lat, origin_lng, origin_cone = drift_engine.backtrack_origin(
+        detect_lat=slicks[0].centroid.lat,
+        detect_lng=slicks[0].centroid.lng,
+        elapsed_hours=2.5,
+        wind_speed_ms=env.wind_speed_ms,
+        wind_direction_from_deg=env.wind_direction_deg,
+        current_speed_ms=env.current_speed_ms,
+        current_direction_to_deg=env.current_direction_deg
+    )
+
+    vessels = [
+        VesselTrack(
+            metadata=VesselMetadata(
+                mmsi=419003322,
+                imo=9789123,
+                name="MT Al-Zubarah",
+                callsign="AWZB9",
+                ship_type="Crude Oil Tanker",
+                flag="Panama",
+                length_m=333.0,
+                beam_m=60.0,
+                gross_tonnage=162000,
+                risk_weight=1.8
+            ),
+            positions=[
+                TelemetryPoint(timestamp="2026-09-02T02:00:00Z", lat=22.480, lng=69.560, sog=2.1, cog=70.0, heading=68.0, nav_status="Moored"),
+                TelemetryPoint(timestamp="2026-09-02T02:42:00Z", lat=origin_lat, lng=origin_lng, sog=0.4, cog=70.0, heading=68.0, nav_status="Moored"),
+                TelemetryPoint(timestamp="2026-09-02T03:30:00Z", lat=22.485, lng=69.575, sog=0.5, cog=70.0, heading=68.0, nav_status="Moored"),
+            ]
+        ),
+        VesselTrack(
+            metadata=VesselMetadata(
+                mmsi=419000455,
+                imo=9345111,
+                name="MV Narmada Shield",
+                callsign="VWTG1",
+                ship_type="Tugboat",
+                flag="India",
+                length_m=45.0,
+                beam_m=12.0,
+                gross_tonnage=980,
+                risk_weight=0.3
+            ),
+            positions=[
+                TelemetryPoint(timestamp="2026-09-02T02:30:00Z", lat=22.470, lng=69.550, sog=5.2, cog=40.0, heading=40.0, nav_status="Under way using engine"),
+                TelemetryPoint(timestamp="2026-09-02T03:00:00Z", lat=22.490, lng=69.570, sog=5.0, cog=40.0, heading=40.0, nav_status="Under way using engine"),
+            ]
+        ),
+        VesselTrack(
+            metadata=VesselMetadata(
+                mmsi=419888123,
+                imo=9801122,
+                name="ICGS Varad",
+                callsign="VWC12",
+                ship_type="Law Enforcement",
+                flag="India",
+                length_m=105.0,
+                beam_m=13.6,
+                gross_tonnage=2400,
+                risk_weight=0.1
+            ),
+            positions=[
+                TelemetryPoint(timestamp="2026-09-02T03:00:00Z", lat=22.520, lng=69.530, sog=18.0, cog=110.0, heading=110.0, nav_status="Under way using engine"),
+                TelemetryPoint(timestamp="2026-09-02T03:30:00Z", lat=22.505, lng=69.590, sog=17.5, cog=110.0, heading=110.0, nav_status="Under way using engine"),
+            ]
+        )
+    ]
+
+    culprits = correlation_engine.correlate_incident(
+        slick=slicks[0],
+        origin_lat=origin_lat,
+        origin_lng=origin_lng,
+        vessel_tracks=vessels
+    )
+
+    return ScenarioData(
+        id="scenario_delta_gulf_of_kutch",
+        title="Scenario Delta: Coastal SPM Pipeline Breach",
+        description="Crude oil discharge at Vadinar SPM mooring terminal in Gulf of Kutch. System computes Lagrangian drift toward Narara Reef Marine Sanctuary.",
+        region_name="Gulf of Kutch // Jamnagar Oil Terminal",
+        sar_image=sar_meta,
+        environmental=env,
+        slicks=slicks,
+        vessels=vessels,
+        drift_origin_cone=origin_cone,
+        culprits=culprits
+    )
+
+def build_scenario_epsilon() -> ScenarioData:
+    """
+    Scenario Epsilon: Dark Ship STS Oil Transfer (Gulf of Mannar / Palk Strait, Tamil Nadu)
+    Two unflagged tankers execute illicit Ship-to-Ship fuel transfer. Transponder blackout during midnight operation.
+    """
+    env = EnvironmentalCondition(
+        wind_speed_ms=5.2,
+        wind_direction_deg=190.0,
+        current_speed_ms=0.40,
+        current_direction_deg=30.0,
+        sea_state=2,
+        surface_temp_c=29.1
+    )
+
+    sar_meta = SARImageMetadata(
+        scene_id="S1A_IW_GRDH_1SDV_20260902T023000_GULF_MANNAR",
+        satellite="Sentinel-1A C-Band SAR",
+        mode="IW (Interferometric Wide)",
+        polarization="VV + VH",
+        acquisition_time="2026-09-02T02:30:00Z",
+        bounds=[[8.65, 78.30], [9.05, 78.65]],
+        resolution_m=10.0,
+        image_url="/sar_samples/scenario_epsilon_gulf_of_mannar.jpg"
+    )
+
+    slick_coords = [
+        [78.460, 8.840],
+        [78.480, 8.855],
+        [78.495, 8.865],
+        [78.490, 8.870],
+        [78.472, 8.858],
+        [78.455, 8.845],
+        [78.460, 8.840]
+    ]
+
+    slick_specs = [{
+        "polygon_coords": slick_coords,
+        "radar_damping_db": 10.2,
+        "edge_sharpness": 0.89,
+        "thickness_microns": 3.8
+    }]
+
+    slicks_dict = detector.process_sar_scene(
+        scene_id=sar_meta.scene_id,
+        base_lat=8.855,
+        base_lng=78.475,
+        wind_speed_ms=env.wind_speed_ms,
+        slick_specs=slick_specs
+    )
+    slicks = [SlickPolygon(**s) for s in slicks_dict]
+
+    origin_lat, origin_lng, origin_cone = drift_engine.backtrack_origin(
+        detect_lat=slicks[0].centroid.lat,
+        detect_lng=slicks[0].centroid.lng,
+        elapsed_hours=3.0,
+        wind_speed_ms=env.wind_speed_ms,
+        wind_direction_from_deg=env.wind_direction_deg,
+        current_speed_ms=env.current_speed_ms,
+        current_direction_to_deg=env.current_direction_deg
+    )
+
+    vessels = [
+        VesselTrack(
+            metadata=VesselMetadata(
+                mmsi=352999001,
+                imo=9128999,
+                name="MT Shadow Voyager",
+                callsign="3FSH8",
+                ship_type="Crude Oil Tanker",
+                flag="Panama",
+                length_m=228.0,
+                beam_m=38.0,
+                gross_tonnage=54000,
+                risk_weight=2.0
+            ),
+            positions=[
+                TelemetryPoint(timestamp="2026-09-01T22:30:00Z", lat=8.800, lng=78.420, sog=12.5, cog=42.0, heading=40.0, nav_status="Under way using engine"),
+                TelemetryPoint(timestamp="2026-09-01T23:30:00Z", lat=origin_lat, lng=origin_lng, sog=1.2, cog=45.0, heading=45.0, nav_status="Not under command"),
+                TelemetryPoint(timestamp="2026-09-02T01:00:00Z", lat=8.870, lng=78.490, sog=13.0, cog=42.0, heading=42.0, nav_status="Under way using engine"),
+            ]
+        ),
+        VesselTrack(
+            metadata=VesselMetadata(
+                mmsi=538009123,
+                imo=9412000,
+                name="MT Blue Coral",
+                callsign="V7BC3",
+                ship_type="Bunkering Tanker",
+                flag="Marshall Islands",
+                length_m=110.0,
+                beam_m=18.0,
+                gross_tonnage=6800,
+                risk_weight=1.2
+            ),
+            positions=[
+                TelemetryPoint(timestamp="2026-09-01T23:00:00Z", lat=8.810, lng=78.435, sog=2.5, cog=45.0, heading=45.0, nav_status="Under way using engine"),
+                TelemetryPoint(timestamp="2026-09-01T23:30:00Z", lat=origin_lat + 0.002, lng=origin_lng + 0.002, sog=1.1, cog=45.0, heading=45.0, nav_status="Not under command"),
+                TelemetryPoint(timestamp="2026-09-02T01:15:00Z", lat=8.880, lng=78.510, sog=9.8, cog=45.0, heading=45.0, nav_status="Under way using engine"),
+            ]
+        ),
+        VesselTrack(
+            metadata=VesselMetadata(
+                mmsi=419002211,
+                imo=9556789,
+                name="MV Sethu Express",
+                callsign="VWSE2",
+                ship_type="General Cargo",
+                flag="India",
+                length_m=140.0,
+                beam_m=22.0,
+                gross_tonnage=11200,
+                risk_weight=0.4
+            ),
+            positions=[
+                TelemetryPoint(timestamp="2026-09-01T23:15:00Z", lat=8.860, lng=78.390, sog=11.5, cog=120.0, heading=120.0, nav_status="Under way using engine"),
+                TelemetryPoint(timestamp="2026-09-02T00:15:00Z", lat=8.830, lng=78.450, sog=11.2, cog=120.0, heading=120.0, nav_status="Under way using engine"),
+            ]
+        )
+    ]
+
+    culprits = correlation_engine.correlate_incident(
+        slick=slicks[0],
+        origin_lat=origin_lat,
+        origin_lng=origin_lng,
+        vessel_tracks=vessels
+    )
+
+    return ScenarioData(
+        id="scenario_epsilon_gulf_of_mannar",
+        title="Scenario Epsilon: Dark Ship STS Oil Transfer",
+        description="Unflagged tanker pair performs unauthorized Ship-to-Ship (STS) fuel transfer in Gulf of Mannar corridor with transponder blackout.",
+        region_name="Gulf of Mannar // Tuticorin Corridor",
+        sar_image=sar_meta,
+        environmental=env,
+        slicks=slicks,
+        vessels=vessels,
+        drift_origin_cone=origin_cone,
+        culprits=culprits
+    )
+
+def build_scenario_zeta() -> ScenarioData:
+    """
+    Scenario Zeta: Deepwater Channel Bilge Dump (Nine Degree Channel, Lakshadweep Atoll)
+    International transit tanker flushes dirty bilges near Minicoy Island coral reefs.
+    """
+    env = EnvironmentalCondition(
+        wind_speed_ms=6.0,
+        wind_direction_deg=270.0,
+        current_speed_ms=0.52,
+        current_direction_deg=90.0,
+        sea_state=3,
+        surface_temp_c=30.2
+    )
+
+    sar_meta = SARImageMetadata(
+        scene_id="S1B_IW_GRDH_1SDV_20260902T114000_LAKSHADWEEP",
+        satellite="Sentinel-1B C-Band SAR",
+        mode="IW (Interferometric Wide)",
+        polarization="VV + VH",
+        acquisition_time="2026-09-02T11:40:00Z",
+        bounds=[[9.95, 73.20], [10.35, 73.65]],
+        resolution_m=10.0,
+        image_url="/sar_samples/scenario_zeta_lakshadweep.jpg"
+    )
+
+    slick_coords = [
+        [73.390, 10.130],
+        [73.415, 10.145],
+        [73.438, 10.155],
+        [73.432, 10.162],
+        [73.408, 10.150],
+        [73.385, 10.138],
+        [73.390, 10.130]
+    ]
+
+    slick_specs = [{
+        "polygon_coords": slick_coords,
+        "radar_damping_db": 8.8,
+        "edge_sharpness": 0.85,
+        "thickness_microns": 2.9
+    }]
+
+    slicks_dict = detector.process_sar_scene(
+        scene_id=sar_meta.scene_id,
+        base_lat=10.145,
+        base_lng=73.410,
+        wind_speed_ms=env.wind_speed_ms,
+        slick_specs=slick_specs
+    )
+    slicks = [SlickPolygon(**s) for s in slicks_dict]
+
+    origin_lat, origin_lng, origin_cone = drift_engine.backtrack_origin(
+        detect_lat=slicks[0].centroid.lat,
+        detect_lng=slicks[0].centroid.lng,
+        elapsed_hours=3.2,
+        wind_speed_ms=env.wind_speed_ms,
+        wind_direction_from_deg=env.wind_direction_deg,
+        current_speed_ms=env.current_speed_ms,
+        current_direction_to_deg=env.current_direction_deg
+    )
+
+    vessels = [
+        VesselTrack(
+            metadata=VesselMetadata(
+                mmsi=419008877,
+                imo=9651122,
+                name="MT Indus Star",
+                callsign="VWIS9",
+                ship_type="Crude Oil Tanker",
+                flag="India",
+                length_m=274.0,
+                beam_m=48.0,
+                gross_tonnage=81000,
+                risk_weight=1.5
+            ),
+            positions=[
+                TelemetryPoint(timestamp="2026-09-02T07:30:00Z", lat=10.100, lng=73.280, sog=14.8, cog=85.0, heading=85.0, nav_status="Under way using engine"),
+                TelemetryPoint(timestamp="2026-09-02T08:24:00Z", lat=origin_lat, lng=origin_lng, sog=4.8, cog=88.0, heading=87.0, nav_status="Under way using engine"),
+                TelemetryPoint(timestamp="2026-09-02T09:30:00Z", lat=10.160, lng=73.460, sog=14.2, cog=85.0, heading=85.0, nav_status="Under way using engine"),
+            ]
+        ),
+        VesselTrack(
+            metadata=VesselMetadata(
+                mmsi=636015432,
+                imo=9710088,
+                name="MV Container Express",
+                callsign="A8CE1",
+                ship_type="Container Ship",
+                flag="Liberia",
+                length_m=290.0,
+                beam_m=40.0,
+                gross_tonnage=74000,
+                risk_weight=0.5
+            ),
+            positions=[
+                TelemetryPoint(timestamp="2026-09-02T08:00:00Z", lat=10.210, lng=73.300, sog=18.5, cog=92.0, heading=92.0, nav_status="Under way using engine"),
+                TelemetryPoint(timestamp="2026-09-02T09:00:00Z", lat=10.200, lng=73.480, sog=18.2, cog=92.0, heading=92.0, nav_status="Under way using engine"),
+            ]
+        ),
+        VesselTrack(
+            metadata=VesselMetadata(
+                mmsi=419004567,
+                imo=9231122,
+                name="MV Kadmat Island",
+                callsign="VWKI5",
+                ship_type="Passenger / Cruise",
+                flag="India",
+                length_m=85.0,
+                beam_m=15.0,
+                gross_tonnage=3400,
+                risk_weight=0.2
+            ),
+            positions=[
+                TelemetryPoint(timestamp="2026-09-02T08:15:00Z", lat=10.050, lng=73.350, sog=13.0, cog=350.0, heading=350.0, nav_status="Under way using engine"),
+                TelemetryPoint(timestamp="2026-09-02T09:00:00Z", lat=10.180, lng=73.330, sog=12.8, cog=350.0, heading=350.0, nav_status="Under way using engine"),
+            ]
+        )
+    ]
+
+    culprits = correlation_engine.correlate_incident(
+        slick=slicks[0],
+        origin_lat=origin_lat,
+        origin_lng=origin_lng,
+        vessel_tracks=vessels
+    )
+
+    return ScenarioData(
+        id="scenario_zeta_lakshadweep",
+        title="Scenario Zeta: Deepwater Channel Bilge Dump",
+        description="Illicit bilge cleaning by transit tanker in Nine Degree Channel near Lakshadweep Coral Atolls. High ecological vulnerability warning.",
+        region_name="Nine Degree Channel // Lakshadweep Atoll",
+        sar_image=sar_meta,
+        environmental=env,
+        slicks=slicks,
+        vessels=vessels,
+        drift_origin_cone=origin_cone,
+        culprits=culprits
+    )
+
 SCENARIOS: Dict[str, ScenarioData] = {
-    "scenario_alpha_rogue_tanker": build_scenario_alpha(),
     "scenario_beta_singapore_strait": build_scenario_beta(),
+    "scenario_alpha_rogue_tanker": build_scenario_alpha(),
     "scenario_gamma_lookalike": build_scenario_gamma(),
+    "scenario_delta_gulf_of_kutch": build_scenario_delta(),
+    "scenario_epsilon_gulf_of_mannar": build_scenario_epsilon(),
+    "scenario_zeta_lakshadweep": build_scenario_zeta(),
 }
+
