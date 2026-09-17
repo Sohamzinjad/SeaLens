@@ -230,11 +230,11 @@
       width: 252px;
       height: 164px;
       border-radius: 16px;
-      border: 2.5px solid rgba(217, 221, 227, 0.55);
-      background: rgba(15, 23, 42, 0.72);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+      border: 2.5px solid rgba(255, 255, 255, 0.95);
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(248, 250, 252, 0.82) 100%);
+      backdrop-filter: blur(24px) saturate(180%);
+      -webkit-backdrop-filter: blur(24px) saturate(180%);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.10), 0 2px 8px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 1);
       padding: 6px;
       overflow: hidden;
       transition: opacity 180ms ease, transform 180ms ease, border-color 200ms ease, box-shadow 200ms ease;
@@ -242,8 +242,8 @@
       -webkit-user-select: none;
     }
     .sar-pure-card:hover {
-      border-color: rgba(255, 255, 255, 0.75);
-      box-shadow: 0 16px 40px -4px rgba(0, 0, 0, 0.40), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+      border-color: rgba(255, 255, 255, 1);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.14), 0 4px 12px rgba(0, 0, 0, 0.07), inset 0 1px 0 rgba(255, 255, 255, 1);
     }
     .sar-pure-card img {
       width: 100%;
@@ -264,15 +264,16 @@
       max-width: 90vw;
       max-height: 80vh;
       border-radius: 20px;
-      border: 3px solid rgba(217, 221, 227, 0.55);
-      background: rgba(15, 23, 42, 0.88);
-      backdrop-filter: blur(24px);
-      -webkit-backdrop-filter: blur(24px);
-      box-shadow: 0 25px 65px -10px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.20);
+      border: 3px solid rgba(255, 255, 255, 0.95);
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.90) 100%);
+      backdrop-filter: blur(28px) saturate(200%);
+      -webkit-backdrop-filter: blur(28px) saturate(200%);
+      box-shadow: 0 25px 65px rgba(0, 0, 0, 0.16), 0 4px 16px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 1);
       padding: 6px;
       overflow: hidden;
       transition: opacity 180ms cubic-bezier(0.16, 1, 0.3, 1), transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
     }
+
 
 
 
@@ -3048,17 +3049,22 @@
       `;
 
       const img = card.querySelector('img');
-      img.addEventListener('click', (e) => {
-        e.stopPropagation();
-        openEnlargedSarPreview(sarImgUrl);
-      });
-
       let isDragging = false;
+      let hasDragged = false;
       let startMouseX = 0, startMouseY = 0;
       let startOffsetX = 0, startOffsetY = 0;
 
+      img.addEventListener('click', (e) => {
+        if (hasDragged) {
+          e.stopPropagation();
+          return;
+        }
+        openEnlargedSarPreview(sarImgUrl);
+      });
+
       card.addEventListener('pointerdown', (e) => {
         isDragging = true;
+        hasDragged = false;
         card.classList.remove('cursor-grab');
         card.classList.add('cursor-grabbing');
         startMouseX = e.clientX;
@@ -3072,6 +3078,9 @@
         if (!isDragging) return;
         const dx = e.clientX - startMouseX;
         const dy = e.clientY - startMouseY;
+        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+          hasDragged = true;
+        }
         popupObj.offset.x = startOffsetX + dx;
         popupObj.offset.y = startOffsetY + dy;
         updateSarPopupsPositions();
@@ -3120,8 +3129,8 @@
         const targetY = cardY + cardH / 2;
 
         svgHtml += `
-          <circle cx="${originPos.x}" cy="${originPos.y}" r="3.5" fill="rgba(56, 189, 248, 0.9)" stroke="rgba(255, 255, 255, 0.9)" stroke-width="1.2" />
-          <line x1="${originPos.x}" y1="${originPos.y}" x2="${targetX}" y2="${targetY}" stroke="rgba(217, 221, 227, 0.50)" stroke-width="1.2" stroke-dasharray="3 3" />
+          <circle cx="${originPos.x}" cy="${originPos.y}" r="3.5" fill="#2563EB" stroke="#FFFFFF" stroke-width="1.5" />
+          <line x1="${originPos.x}" y1="${originPos.y}" x2="${targetX}" y2="${targetY}" stroke="rgba(37, 99, 235, 0.65)" stroke-width="1.4" stroke-dasharray="4 3" />
         `;
       });
 
@@ -3138,21 +3147,21 @@
       container.classList.remove('hidden');
       container.innerHTML = `
         <div id="sarEnlargedPanel" class="sar-enlarged-panel absolute pointer-events-auto flex flex-col overflow-hidden" style="left: ${initX}px; top: ${initY}px;">
-          <div id="sarEnlargedHeader" class="h-8 px-3 flex items-center justify-between cursor-grab active:cursor-grabbing bg-slate-900/80 border-b border-white/10 select-none">
-            <span class="text-[10px] font-mono font-semibold text-slate-300 tracking-wider uppercase flex items-center gap-1.5">
-              <span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+          <div id="sarEnlargedHeader" class="h-8.5 px-3.5 flex items-center justify-between cursor-grab active:cursor-grabbing bg-white/90 border-b border-black/8 select-none">
+            <span class="text-[10.5px] font-mono font-bold text-neutral-800 tracking-wider uppercase flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-blue-600"></span>
               SAR Visual Intelligence Preview
             </span>
-            <button onclick="closeEnlargedSarPreview()" class="w-5 h-5 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center transition-colors text-xs font-bold">×</button>
+            <button onclick="closeEnlargedSarPreview()" class="w-5.5 h-5.5 rounded-full bg-black/5 hover:bg-black/10 text-neutral-600 hover:text-neutral-900 flex items-center justify-center transition-colors text-xs font-bold">×</button>
           </div>
           
-          <div id="sarEnlargedViewport" class="relative flex-1 bg-slate-950 overflow-hidden flex items-center justify-center cursor-grab active:cursor-grabbing">
+          <div id="sarEnlargedViewport" class="relative flex-1 bg-slate-950 overflow-hidden flex items-center justify-center cursor-grab active:cursor-grabbing rounded-b-[14px]">
             <img id="sarEnlargedImg" src="${imgUrl}" alt="Enlarged SAR Image" class="max-w-none transition-transform duration-75 select-none" style="transform: scale(1) translate(0px, 0px); width: 100%; height: 100%; object-fit: contain;" onerror="this.src='/sar_samples/scenario_alpha_rogue_tanker.jpg'" />
             
-            <div class="absolute bottom-3 right-3 flex items-center gap-1 bg-slate-900/80 backdrop-blur-md px-2 py-1 rounded-xl border border-white/15 text-xs font-mono text-slate-200 z-10 shadow-lg pointer-events-auto">
-              <button onclick="zoomEnlargedSar(0.25)" class="w-6 h-6 rounded-lg bg-white/10 hover:bg-white/20 font-bold flex items-center justify-center transition-colors">+</button>
-              <button onclick="zoomEnlargedSar(-0.25)" class="w-6 h-6 rounded-lg bg-white/10 hover:bg-white/20 font-bold flex items-center justify-center transition-colors">-</button>
-              <button onclick="resetEnlargedSarZoom()" class="px-2 h-6 rounded-lg bg-white/10 hover:bg-white/20 font-medium text-[10px] flex items-center justify-center transition-colors">Reset</button>
+            <div class="absolute bottom-3 right-3 flex items-center gap-1 bg-white/90 backdrop-blur-md px-2 py-1 rounded-xl border border-black/10 text-xs font-mono text-neutral-800 z-10 shadow-md pointer-events-auto">
+              <button onclick="zoomEnlargedSar(0.25)" class="w-6 h-6 rounded-lg bg-black/5 hover:bg-black/10 font-bold flex items-center justify-center transition-colors">+</button>
+              <button onclick="zoomEnlargedSar(-0.25)" class="w-6 h-6 rounded-lg bg-black/5 hover:bg-black/10 font-bold flex items-center justify-center transition-colors">-</button>
+              <button onclick="resetEnlargedSarZoom()" class="px-2 h-6 rounded-lg bg-black/5 hover:bg-black/10 font-bold text-[10px] flex items-center justify-center transition-colors">Reset</button>
             </div>
           </div>
         </div>
