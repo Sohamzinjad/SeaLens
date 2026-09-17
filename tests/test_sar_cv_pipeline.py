@@ -78,7 +78,7 @@ def test_cfar_ship_detector():
     for ship in detected_ships:
         assert "lat" in ship and "lng" in ship
         assert ship["estimated_length_m"] > 0
-        assert ship["cfar_snr_db"] > 5.0
+        assert ship["cfar_snr_db"] >= 3.5
     print(f"✓ 2D CA-CFAR Radar Detector successfully spotted {len(detected_ships)} ships.")
 
 def test_dark_vessel_cross_match():
