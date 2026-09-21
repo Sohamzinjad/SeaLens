@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "build": "vite build && cp dist/client/_shell.html dist/client/index.html 2>/dev/null || true && cp c2.html dist/client/c2.html 2>/dev/null || true",
+    "build": "mkdir -p dist && cp index.html dist/index.html && cp c2.html dist/c2.html && cp -r public dist/ 2>/dev/null || true",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
