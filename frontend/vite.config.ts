@@ -9,6 +9,8 @@ export default defineConfig({
   },
   plugins: [
     tanstackStart({
+      spa: { enabled: true },
+      prerender: { enabled: true },
       server: { entry: "server" },
     }),
     react(),

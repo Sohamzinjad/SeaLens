@@ -1,0 +1,9 @@
+{
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist/client",
+  "rewrites": [
+    { "source": "/c2", "destination": "/c2.html" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
