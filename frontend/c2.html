@@ -917,16 +917,22 @@
           </div>
         </div>
         <div class="flex items-center space-x-2">
-          <button id="btnDownloadPDF" onclick="window.print()" class="px-3 py-1.5 bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-mono font-bold rounded-xl flex items-center space-x-1.5 shadow-sm">
+          <button id="btnDownloadMD" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-mono font-bold rounded-xl flex items-center space-x-1.5 shadow-sm cursor-pointer transition-colors">
+            <i data-lucide="download" class="w-3.5 h-3.5"></i>
+            <span>Download Dossier (.md)</span>
+          </button>
+          <button id="btnPrintDossier" class="px-3 py-1.5 bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-mono font-bold rounded-xl flex items-center space-x-1.5 shadow-sm cursor-pointer transition-colors">
             <i data-lucide="printer" class="w-3.5 h-3.5"></i>
             <span>Print / PDF</span>
           </button>
-          <button id="btnCloseDossier" class="w-8 h-8 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-600 flex items-center justify-center">
+          <button id="btnCloseDossier" class="w-8 h-8 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-600 flex items-center justify-center cursor-pointer">
             <i data-lucide="x" class="w-4 h-4"></i>
           </button>
         </div>
       </div>
       <div class="p-6 overflow-y-auto custom-scrollbar font-mono text-xs leading-relaxed text-neutral-800 bg-white">
+        <pre id="dossierMarkdownContent" class="whitespace-pre-wrap font-mono text-xs text-neutral-800 leading-relaxed"></pre>
+      </div>
     </div>
   </div>
 
@@ -1268,6 +1274,7 @@
 
     let currentScenarioData = null;
     let activeMarkers = [];
+    let activeVesselMarkers = new Map(); // keyed by MMSI for smooth reuse
     let activeVesselList = [];
     let isPlaying = false;
     let playInterval = null;
@@ -1389,6 +1396,11 @@
     function clearActiveMarkers() {
       activeMarkers.forEach(m => m.remove());
       activeMarkers = [];
+    }
+
+    function clearVesselMarkers() {
+      activeVesselMarkers.forEach(m => m.remove());
+      activeVesselMarkers.clear();
     }
 
     // GeoJSON circle helper
@@ -1556,6 +1568,30 @@
             'line-color': '#0E7490',
             'line-width': 1.5,
             'line-dasharray': [2, 2]
+          }
+        });
+      }
+
+      // 72h Fay Spreading Slick Polygons
+      if (!map.getSource('drift-spreading-src')) {
+        map.addSource('drift-spreading-src', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+        map.addLayer({
+          id: 'drift-spreading-fill',
+          type: 'fill',
+          source: 'drift-spreading-src',
+          paint: {
+            'fill-color': ['coalesce', ['get', 'color'], '#D97706'],
+            'fill-opacity': ['coalesce', ['get', 'opacity'], 0.35]
+          }
+        });
+        map.addLayer({
+          id: 'drift-spreading-outline',
+          type: 'line',
+          source: 'drift-spreading-src',
+          paint: {
+            'line-color': '#F59E0B',
+            'line-width': 1.2,
+            'line-opacity': 0.7
           }
         });
       }
@@ -1754,6 +1790,7 @@
         if (!res.ok) throw new Error("Failed to load scenario");
         const data = await res.json();
         currentScenarioData = data;
+        clearVesselMarkers();
         renderScenario(data);
         loadDarkVessels(scenarioId);
       } catch (err) { console.error("Scenario load error:", err); }
@@ -1832,6 +1869,14 @@
 
     function renderScenario(data, timelinePct = 100) {
       clearActiveMarkers();
+      // Only clear vessel markers when the scenario itself changes
+      if (activeVesselList !== (data.vessels || []) && activeVesselMarkers.size > 0) {
+        // Check if this is actually a different set of vessels
+        const newMMSIs = new Set((data.vessels || []).map(v => v.metadata.mmsi));
+        const stale = [];
+        activeVesselMarkers.forEach((m, mmsi) => { if (!newMMSIs.has(mmsi)) stale.push(mmsi); });
+        stale.forEach(mmsi => { activeVesselMarkers.get(mmsi).remove(); activeVesselMarkers.delete(mmsi); });
+      }
       activeVesselList = data.vessels || [];
 
       const regionEl = document.getElementById('regionName');
@@ -1923,7 +1968,7 @@
         activeMarkers.push(pinMarker);
       }
 
-      // 5. Render Vessel Tracks & Color Markers
+      // 5. Render Vessel Tracks & Color Markers (smooth interpolation)
       if (data.vessels) {
         const vesselLineFeatures = [];
         data.vessels.forEach(vessel => {
@@ -1938,6 +1983,7 @@
             else if (culpritMatch.verdict === 'POTENTIAL CONTRIBUTOR') { trackColor = '#F59E0B'; width = 2.8; isPotential = true; }
           }
 
+          // Build the track line up to the current timeline position
           const lineCoords = vessel.positions.map(p => [p.lng, p.lat]);
           vesselLineFeatures.push({
             "type": "Feature",
@@ -1945,47 +1991,65 @@
             "properties": { "name": vessel.metadata.name, "color": trackColor, "width": width }
           });
 
+          // --- Smooth interpolation between waypoints ---
           const posCount = vessel.positions.length;
-          const posIdx = Math.min(posCount - 1, Math.floor((timelinePct / 100) * posCount));
-          const currentPos = vessel.positions[posIdx];
+          const fractionalIdx = (timelinePct / 100) * (posCount - 1);
+          const idxA = Math.max(0, Math.min(posCount - 1, Math.floor(fractionalIdx)));
+          const idxB = Math.min(posCount - 1, idxA + 1);
+          const t = fractionalIdx - idxA; // 0..1 between waypoints A and B
+          const posA = vessel.positions[idxA];
+          const posB = vessel.positions[idxB];
+          const interpLng = posA.lng + (posB.lng - posA.lng) * t;
+          const interpLat = posA.lat + (posB.lat - posA.lat) * t;
 
-          const ballNode = document.createElement('div');
-          
-          if (isPrimary) {
-            ballNode.className = 'w-7 h-7 rounded-full bg-rose-600 border-2 border-white dark-glow-pulse flex items-center justify-center text-white font-mono text-[9px] font-bold cursor-pointer';
-            ballNode.innerHTML = `<i data-lucide="navigation" class="w-3.5 h-3.5 text-white"></i>`;
-          } else if (isPotential) {
-            ballNode.className = 'w-5.5 h-5.5 rounded-full bg-amber-500 border-2 border-white shadow-lg flex items-center justify-center text-white font-mono text-[8px] font-bold cursor-pointer';
-            ballNode.innerHTML = `<i data-lucide="navigation" class="w-2.5 h-2.5 text-white"></i>`;
+          const mmsi = vessel.metadata.mmsi;
+          let shipMarker = activeVesselMarkers.get(mmsi);
+
+          if (shipMarker) {
+            // Reuse existing marker — just glide it to the new position
+            shipMarker.setLngLat([interpLng, interpLat]);
           } else {
-            ballNode.className = 'w-4.5 h-4.5 rounded-full bg-blue-600 border-2 border-white shadow-md flex items-center justify-center text-white font-mono text-[8px] cursor-pointer';
-            ballNode.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-white"></span>`;
-          }
+            // First time seeing this vessel — create the marker
+            const ballNode = document.createElement('div');
+            ballNode.style.transition = 'transform 0.15s linear';
 
-          ballNode.addEventListener('click', () => {
-            openVesselDrawer({
-              name: vessel.metadata.name,
-              type: vessel.metadata.ship_type,
-              mmsi: vessel.metadata.mmsi,
-              imo: vessel.metadata.imo || 9487123,
-              flag: vessel.metadata.flag || 'Panama',
-              length_m: vessel.metadata.length_m || 245,
-              beam_m: vessel.metadata.beam_m || 42,
-              gross_tonnage: vessel.metadata.gross_tonnage || 62500,
-              cpa_km: culpritMatch ? culpritMatch.closest_approach_distance_km : 1.4,
-              speed_anomaly: culpritMatch ? culpritMatch.speed_anomaly_score : 12,
-              attribution: culpritMatch ? culpritMatch.composite_score : 18.5,
-              ais_health: 'HEALTHY (ACTIVE TRANSPEONDER)',
-              lng: currentPos.lng,
-              lat: currentPos.lat
+            if (isPrimary) {
+              ballNode.className = 'w-7 h-7 rounded-full bg-rose-600 border-2 border-white dark-glow-pulse flex items-center justify-center text-white font-mono text-[9px] font-bold cursor-pointer';
+              ballNode.innerHTML = `<i data-lucide="navigation" class="w-3.5 h-3.5 text-white"></i>`;
+            } else if (isPotential) {
+              ballNode.className = 'w-5.5 h-5.5 rounded-full bg-amber-500 border-2 border-white shadow-lg flex items-center justify-center text-white font-mono text-[8px] font-bold cursor-pointer';
+              ballNode.innerHTML = `<i data-lucide="navigation" class="w-2.5 h-2.5 text-white"></i>`;
+            } else {
+              ballNode.className = 'w-4.5 h-4.5 rounded-full bg-blue-600 border-2 border-white shadow-md flex items-center justify-center text-white font-mono text-[8px] cursor-pointer';
+              ballNode.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-white"></span>`;
+            }
+
+            ballNode.addEventListener('click', () => {
+              const curLngLat = shipMarker.getLngLat();
+              openVesselDrawer({
+                name: vessel.metadata.name,
+                type: vessel.metadata.ship_type,
+                mmsi: vessel.metadata.mmsi,
+                imo: vessel.metadata.imo || 9487123,
+                flag: vessel.metadata.flag || 'Panama',
+                length_m: vessel.metadata.length_m || 245,
+                beam_m: vessel.metadata.beam_m || 42,
+                gross_tonnage: vessel.metadata.gross_tonnage || 62500,
+                cpa_km: culpritMatch ? culpritMatch.closest_approach_distance_km : 1.4,
+                speed_anomaly: culpritMatch ? culpritMatch.speed_anomaly_score : 12,
+                attribution: culpritMatch ? culpritMatch.composite_score : 18.5,
+                ais_health: 'HEALTHY (ACTIVE TRANSPEONDER)',
+                lng: curLngLat.lng,
+                lat: curLngLat.lat
+              });
             });
-          });
 
-          const shipMarker = new maplibregl.Marker({ element: ballNode })
-            .setLngLat([currentPos.lng, currentPos.lat])
-            .addTo(map);
+            shipMarker = new maplibregl.Marker({ element: ballNode })
+              .setLngLat([interpLng, interpLat])
+              .addTo(map);
 
-          activeMarkers.push(shipMarker);
+            activeVesselMarkers.set(mmsi, shipMarker);
+          }
         });
 
         if (map.getSource('vessels-src')) {
@@ -2107,17 +2171,78 @@
     // Forensic Dossier Modal
     const dossierModal = document.getElementById('dossierModal');
     document.getElementById('btnDossier').addEventListener('click', async () => {
-      if (!currentScenarioData) return;
+      const scenarioId = currentScenarioData?.id || 'scenario_alpha_rogue_tanker';
       try {
-        const res = await fetch(`/api/dossier/${currentScenarioData.id}/markdown`);
+        const res = await fetch(`/api/dossier/${scenarioId}/markdown`);
+        if (!res.ok) {
+          throw new Error(`Server returned HTTP ${res.status}`);
+        }
         const mdText = await res.text();
-        document.getElementById('dossierMarkdownContent').textContent = mdText;
+        const contentEl = document.getElementById('dossierMarkdownContent');
+        if (contentEl) {
+          contentEl.textContent = mdText;
+        }
         dossierModal.classList.remove('hidden');
-      } catch (e) { alert("Error loading dossier: " + e); }
+      } catch (e) { alert("Error loading dossier: " + (e.message || e)); }
     });
 
     document.getElementById('btnCloseDossier').addEventListener('click', () => {
       dossierModal.classList.add('hidden');
+    });
+
+    // Download Forensic Dossier as Markdown file
+    document.getElementById('btnDownloadMD').addEventListener('click', () => {
+      if (!currentScenarioData) return;
+      const scenarioId = currentScenarioData.id || 'scenario_alpha_rogue_tanker';
+      const mdContent = document.getElementById('dossierMarkdownContent').textContent;
+      if (!mdContent) {
+        alert("Dossier content is empty.");
+        return;
+      }
+      
+      const blob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `seaLens_Forensic_Dossier_${scenarioId}.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+
+    // Print / Save PDF for Forensic Dossier
+    document.getElementById('btnPrintDossier').addEventListener('click', () => {
+      const mdContent = document.getElementById('dossierMarkdownContent').textContent;
+      if (!mdContent) return;
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        alert("Please allow popups to print/export PDF of dossier.");
+        return;
+      }
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>seaLens Forensic Incident Evidence Dossier</title>
+            <style>
+              body { font-family: 'Courier New', Courier, monospace; padding: 40px; font-size: 13px; line-height: 1.6; color: #111; background: #fff; }
+              h1, h2, h3 { font-family: sans-serif; }
+              pre { whitespace: pre-wrap; word-wrap: break-word; background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; }
+            </style>
+          </head>
+          <body>
+            <h2>seaLens Forensic Incident Evidence Dossier</h2>
+            <pre>${mdContent.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+            <script>
+              window.onload = function() {
+                window.print();
+              }
+            <\/script>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
     });
 
     // Timeline Scrubber Controls
@@ -2186,12 +2311,41 @@
       if (map.getSource('forward-drift-src')) {
         map.getSource('forward-drift-src').setData({ type: 'FeatureCollection', features: [] });
       }
+      if (map.getSource('drift-spreading-src')) {
+        map.getSource('drift-spreading-src').setData({ type: 'FeatureCollection', features: [] });
+      }
       if (map.getSource('drift-uncertainty-src')) {
         map.getSource('drift-uncertainty-src').setData({ type: 'FeatureCollection', features: [] });
       }
       if (map.getSource('containment-booms-src')) {
         map.getSource('containment-booms-src').setData({ type: 'FeatureCollection', features: [] });
       }
+    }
+
+    function createSpreadingPolygon(centerLng, centerLat, radiusKm, bearingDeg = 45, elongationRatio = 1.6, points = 32) {
+      const coords = [];
+      const kmPerDegLat = 111.139;
+      const kmPerDegLng = 111.139 * Math.cos(centerLat * Math.PI / 180);
+      const bearingRad = (bearingDeg || 0) * Math.PI / 180;
+      const effectiveRadius = Math.max(0.05, radiusKm);
+      
+      for (let i = 0; i <= points; i++) {
+        const theta = (i * 2 * Math.PI) / points;
+        const dxLocal = effectiveRadius * elongationRatio * Math.sin(theta);
+        const dyLocal = effectiveRadius * Math.cos(theta);
+        
+        const dxRotated = dxLocal * Math.cos(bearingRad) + dyLocal * Math.sin(bearingRad);
+        const dyRotated = -dxLocal * Math.sin(bearingRad) + dyLocal * Math.cos(bearingRad);
+        
+        const lng = centerLng + dxRotated / kmPerDegLng;
+        const lat = centerLat + dyRotated / kmPerDegLat;
+        coords.push([lng, lat]);
+      }
+      return {
+        type: 'Feature',
+        geometry: { type: 'Polygon', coordinates: [coords] },
+        properties: {}
+      };
     }
 
     const btnForwardDrift = document.getElementById('btnForwardDrift');
@@ -2311,7 +2465,43 @@
         });
       }
 
-      // 2. Uncertainty Cones (Samples at 12h, 24h, 48h, 72h)
+      // 2. Fay Spreading Polygons (0h, 6h, 12h, 18h, 24h, 36h, 48h, 72h)
+      const spreadingFeatures = [];
+      const sampleHours = [1, 6, 12, 18, 24, 36, 48, 72];
+      sampleHours.forEach(h => {
+        const pt = trajPts.find(p => p.hour === h) || trajPts[Math.min(h - 1, trajPts.length - 1)];
+        if (pt) {
+          const slickRadius = pt.slick_radius_km || (0.08 + 0.02 * Math.sqrt(pt.hour));
+          const polyFeature = createSpreadingPolygon(pt.lng, pt.lat, slickRadius, pt.bearing_deg || 45, 1.8, 32);
+          
+          let col = '#92400E'; // fresh thick oil
+          let opacity = 0.45;
+          if (pt.hour > 36) {
+            col = '#F59E0B';
+            opacity = 0.22;
+          } else if (pt.hour > 12) {
+            col = '#D97706';
+            opacity = 0.32;
+          }
+
+          polyFeature.properties = {
+            color: col,
+            opacity: opacity,
+            hour: pt.hour,
+            area_sqkm: pt.slick_area_sqkm || (Math.PI * slickRadius * slickRadius).toFixed(3)
+          };
+          spreadingFeatures.push(polyFeature);
+        }
+      });
+
+      if (map.getSource('drift-spreading-src')) {
+        map.getSource('drift-spreading-src').setData({
+          "type": "FeatureCollection",
+          "features": spreadingFeatures
+        });
+      }
+
+      // 3. Uncertainty Cones & Deflection Markers
       const uncertaintyFeatures = [];
       [12, 24, 48, 72].forEach(h => {
         const pt = trajPts.find(p => p.hour === h) || trajPts[trajPts.length - 1];
@@ -2328,12 +2518,33 @@
             .setPopup(new maplibregl.Popup({ offset: 10 }).setHTML(`
               <div class="p-2 font-mono text-xs glass-pill-sleek rounded-xl">
                 <b class="text-cyan-600">Forecast Waypoint +${pt.hour} Hours</b><br>
+                <span>Slick Area: <b>${pt.slick_area_sqkm || '0.05'} km²</b></span><br>
                 <span>Dispersion Radius: ${(pt.uncertainty_radius_km || 1.8).toFixed(2)} km</span><br>
                 <span>Wind: ${pt.wind_speed_ms} m/s · Current: ${pt.current_speed_ms} m/s</span>
               </div>
             `))
             .addTo(map);
           forwardDriftMarkers.push(m);
+        }
+      });
+
+      // Coastline deflection markers
+      trajPts.forEach(pt => {
+        if (pt.has_deflected || (pt.shore_deposit_pct && pt.shore_deposit_pct > 0 && pt.hour % 6 === 0)) {
+          const defNode = document.createElement('div');
+          defNode.className = 'px-2 py-0.5 rounded-lg bg-amber-600 text-white font-mono text-[8px] font-bold border border-amber-300 shadow-lg flex items-center space-x-1 cursor-pointer';
+          defNode.innerHTML = `<span>⚡ COAST DEFLECTION (+${pt.hour}h)</span>`;
+          const defMarker = new maplibregl.Marker({ element: defNode })
+            .setLngLat([pt.lng, pt.lat])
+            .setPopup(new maplibregl.Popup({ offset: 10 }).setHTML(`
+              <div class="p-2 font-mono text-xs glass-pill-sleek rounded-xl border border-amber-400">
+                <b class="text-amber-700 uppercase">Hydrodynamic Coast Deflection</b><br>
+                <span>Oil deflected along coastline tangent</span><br>
+                <span>Shore Deposit Accumulation: <b>${pt.shore_deposit_pct || 8.0}%</b></span>
+              </div>
+            `))
+            .addTo(map);
+          forwardDriftMarkers.push(defMarker);
         }
       });
 
@@ -2344,7 +2555,7 @@
         });
       }
 
-      // 3. Containment Boom Barrier
+      // 4. Containment Boom Barrier
       const landfall = forecast.landfall_impact || {};
       const etaHrs = landfall.eta_hours || forecast.landfall_eta_hours || 18.4;
       const hitPt = (landfall && landfall.impact_lat && landfall.impact_lng) 
@@ -2366,7 +2577,7 @@
         });
       }
 
-      // 4. Landfall Alert Pulse Marker
+      // 5. Landfall Alert Pulse Marker
       const targetName = landfall.target_name || forecast.landfall_target || "Protected Coastal Marine Sanctuary";
       const boomLength = forecast.containment_plan?.containment_booms_recommended_m ? `${forecast.containment_plan.containment_booms_recommended_m}m Type-3 Boom` : "1,200m Type-3 Boom";
 
@@ -2410,6 +2621,7 @@
         tr.innerHTML = `
           <td class="px-3 py-2 font-bold text-neutral-900">+${p.hour}h</td>
           <td class="px-3 py-2">${p.lat.toFixed(4)}°N, ${p.lng.toFixed(4)}°E</td>
+          <td class="px-3 py-2 text-amber-700 font-medium">${(p.slick_area_sqkm || 0.05).toFixed(3)} km²</td>
           <td class="px-3 py-2 text-cyan-700">${(p.uncertainty_radius_km || 0).toFixed(2)} km</td>
           <td class="px-3 py-2">${p.wind_speed_ms} m/s</td>
           <td class="px-3 py-2">${p.current_speed_ms} m/s</td>
@@ -3090,6 +3302,17 @@
     }
 
     function createPureSarPopup(id, lng, lat, sarImgUrl) {
+      // If a popup already exists for this same scenario, just update its
+      // geo-anchor so the leader-line follows the map — but keep the card
+      // element and the user's drag offset intact (no blink, no reset).
+      const existing = activeSarPopups.find(p => p.id === id);
+      if (existing && existing.element && existing.element.parentNode) {
+        existing.lng = lng;
+        existing.lat = lat;
+        updateSarPopupsPositions();
+        return;
+      }
+
       clearPureSarPopups();
 
       const mainEl = _getMainEl();

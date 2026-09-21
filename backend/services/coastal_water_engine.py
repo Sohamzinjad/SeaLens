@@ -132,28 +132,29 @@ class CoastalWaterRoutingEngine:
         target_u_kmh: float,
         target_v_kmh: float,
         dt_hours: float = 1.0,
-        sub_steps: int = 6
-    ) -> Tuple[float, float, bool]:
+        sub_steps: int = 12
+    ) -> Tuple[float, float, bool, float, int]:
         """
         Computes forward step through marine waterbodies with hydrodynamic coastal steering.
         
         Physics:
         1. Decomposes raw velocity into alongshore (tangential) and cross-shore (normal) vectors.
         2. Applies no-normal-flow Dirichlet boundary condition at coastlines (v_normal -> 0).
-        3. Channels current flow along natural water corridors/straits.
-        4. Sub-steps across dt_hours to prevent jumping across landmasses.
+        3. When oil contacts land, **deflects along the coastline tangent** instead of stopping.
+           A fraction of oil deposits on shore at each contact.
+        4. Channels current flow along natural water corridors/straits.
+        5. Sub-steps across dt_hours to prevent jumping across landmasses.
         
         Returns:
-            (next_lat, next_lng, is_landfall_reached)
+            (next_lat, next_lng, is_landfall_reached, shore_deposit_fraction, deflection_count)
         """
         step_dt = dt_hours / float(sub_steps)
         cur_lat, cur_lng = current_lat, current_lng
         is_beached = False
+        shore_deposit_fraction = 0.0
+        deflection_count = 0
 
         for _ in range(sub_steps):
-            if is_beached:
-                break
-
             # Distance to nearest shoreline
             dist_km, nearest_shore = self.get_distance_to_nearest_land_km(cur_lat, cur_lng)
 
@@ -161,8 +162,8 @@ class CoastalWaterRoutingEngine:
             d_east_km = target_u_kmh * step_dt
             d_north_km = target_v_kmh * step_dt
 
-            # If approaching coast (< 2.5 km buffer)
-            if dist_km < 2.5 and nearest_shore:
+            # If approaching coast (< 3.5 km buffer — widened for smoother deflection)
+            if dist_km < 3.5 and nearest_shore:
                 shore_lat, shore_lng = nearest_shore
                 
                 # Vector pointing from shore to current water location (seaward normal)
@@ -175,7 +176,6 @@ class CoastalWaterRoutingEngine:
                     n_lng = seaward_d_lng / seaward_norm
 
                     # Alongshore tangent vector (perpendicular to normal)
-                    # Rotate 90 deg: (-n_lng, n_lat)
                     t_lat = -n_lng
                     t_lng = n_lat
 
@@ -191,18 +191,20 @@ class CoastalWaterRoutingEngine:
 
                     # Hydrodynamic boundary suppression:
                     # Inward onshore velocity (raw_dot_n < 0) is suppressed as distance -> 0
-                    proximity_factor = max(0.0, min(1.0, (dist_km - 0.25) / 2.0))
+                    proximity_factor = max(0.0, min(1.0, (dist_km - 0.15) / 3.0))
                     
                     if raw_dot_n < 0:
-                        steered_dot_n = raw_dot_n * proximity_factor
+                        # Suppress cross-shore (onshore) velocity more aggressively near land
+                        steered_dot_n = raw_dot_n * (proximity_factor ** 2)
                     else:
                         steered_dot_n = raw_dot_n
 
-                    # Alongshore current preservation & channeling through waterbody
-                    steered_dot_t = raw_dot_t * (1.15 - 0.15 * proximity_factor)
+                    # Alongshore current preservation & channeling (amplify tangential flow near coast)
+                    tangential_boost = 1.0 + 0.3 * (1.0 - proximity_factor)
+                    steered_dot_t = raw_dot_t * tangential_boost
 
-                    # Soft seaward buoyancy pressure to keep trajectory centered in water corridor
-                    repulsion_km = 0.04 * (1.0 - proximity_factor)
+                    # Seaward repulsion pressure — keeps trajectory in water corridor
+                    repulsion_km = 0.06 * (1.0 - proximity_factor) ** 2
 
                     d_north_km = (steered_dot_n + repulsion_km) * n_lat + steered_dot_t * t_lat
                     d_east_km = (steered_dot_n + repulsion_km) * n_lng + steered_dot_t * t_lng
@@ -215,14 +217,106 @@ class CoastalWaterRoutingEngine:
 
             # Verify prospective point is not inside land
             if self.is_land(next_lat, next_lng):
-                # Landfall impact reached! Find exact boundary point
+                # --- COASTLINE DEFLECTION instead of dead-stop ---
+                deflection_count += 1
+                # Deposit a fraction of remaining oil on shore at each contact
+                deposit_this_contact = 0.08 * (1.0 - shore_deposit_fraction)
+                shore_deposit_fraction += deposit_this_contact
+
                 if nearest_shore:
-                    cur_lat = nearest_shore[0]
-                    cur_lng = nearest_shore[1]
-                is_beached = True
-                break
+                    shore_lat, shore_lng = nearest_shore
+                    # Compute coastline tangent at the contact point
+                    tang_lat, tang_lng = self._get_coastline_tangent(shore_lat, shore_lng)
+
+                    # Project remaining velocity onto coastline tangent
+                    speed_km = math.hypot(d_north_km, d_east_km)
+                    dot_tangent = d_north_km * tang_lat + d_east_km * tang_lng
+                    
+                    # Align tangent direction with drift direction
+                    if dot_tangent < 0:
+                        tang_lat = -tang_lat
+                        tang_lng = -tang_lng
+                        dot_tangent = -dot_tangent
+
+                    # Redirect: slide along coast + push slightly seaward
+                    seaward_d_lat = cur_lat - shore_lat
+                    seaward_d_lng = cur_lng - shore_lng
+                    sw_norm = math.hypot(seaward_d_lat, seaward_d_lng)
+                    
+                    if sw_norm > 1e-6:
+                        sw_n_lat = seaward_d_lat / sw_norm
+                        sw_n_lng = seaward_d_lng / sw_norm
+                    else:
+                        sw_n_lat, sw_n_lng = 0.0, 0.0
+
+                    # Deflected displacement: 85% tangential + seaward push
+                    deflect_speed = speed_km * 0.85
+                    seaward_push_km = 0.08
+
+                    new_d_north = deflect_speed * tang_lat + seaward_push_km * sw_n_lat
+                    new_d_east = deflect_speed * tang_lng + seaward_push_km * sw_n_lng
+
+                    deflected_lat = cur_lat + new_d_north / 111.139
+                    deflected_lng = cur_lng + new_d_east / (111.139 * math.cos(math.radians(cur_lat)))
+
+                    # Verify deflected point is also not on land
+                    if not self.is_land(deflected_lat, deflected_lng):
+                        cur_lat = deflected_lat
+                        cur_lng = deflected_lng
+                    else:
+                        # Push further seaward from shore point
+                        cur_lat = shore_lat + sw_n_lat * 0.003
+                        cur_lng = shore_lng + sw_n_lng * 0.003
+                        if self.is_land(cur_lat, cur_lng):
+                            # Last resort: stay at current position
+                            pass
+                else:
+                    # No nearest shore reference — stay put
+                    pass
+
+                # If too much oil has beached (>70%), mark as beached
+                if shore_deposit_fraction > 0.70:
+                    is_beached = True
+                    break
             else:
                 cur_lat = next_lat
                 cur_lng = next_lng
 
-        return cur_lat, cur_lng, is_beached
+        return cur_lat, cur_lng, is_beached, round(shore_deposit_fraction, 4), deflection_count
+
+    def _get_coastline_tangent(self, shore_lat: float, shore_lng: float) -> Tuple[float, float]:
+        """
+        Computes the coastline tangent vector at a given shore point by finding
+        two nearby points on the nearest polygon exterior and computing the direction.
+        """
+        pt = Point(shore_lng, shore_lat)
+        best_tangent = (1.0, 0.0)  # default: east
+        min_dist = float("inf")
+
+        for poly in self.land_polygons:
+            exterior = poly.exterior
+            dist = pt.distance(exterior)
+            if dist < min_dist:
+                min_dist = dist
+                # Project point onto exterior to find parameter
+                proj_dist = exterior.project(pt)
+                total_length = exterior.length
+
+                # Sample two points slightly before and after on the exterior ring
+                delta = total_length * 0.005  # ~0.5% of perimeter
+                d_before = max(0.0, proj_dist - delta)
+                d_after = min(total_length, proj_dist + delta)
+
+                p_before = exterior.interpolate(d_before)
+                p_after = exterior.interpolate(d_after)
+
+                # Tangent direction (in lng, lat space)
+                t_lng = p_after.x - p_before.x
+                t_lat = p_after.y - p_before.y
+                t_norm = math.hypot(t_lat, t_lng)
+
+                if t_norm > 1e-9:
+                    best_tangent = (t_lat / t_norm, t_lng / t_norm)
+
+        return best_tangent
+

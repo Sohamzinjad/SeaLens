@@ -5,7 +5,7 @@ FastAPI Main Application and REST API Endpoints.
 import os
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, PlainTextResponse, JSONResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Dict, Any, List
@@ -235,6 +235,17 @@ def get_dossier_markdown(scenario_id: str):
     scenario = SCENARIOS[scenario_id]
     md_content = generate_markdown_dossier(scenario)
     return PlainTextResponse(content=md_content, media_type="text/markdown")
+
+@app.get("/api/dossier/{scenario_id}/download")
+def download_dossier_markdown(scenario_id: str):
+    if scenario_id not in SCENARIOS:
+        raise HTTPException(status_code=404, detail=f"Scenario '{scenario_id}' not found")
+    scenario = SCENARIOS[scenario_id]
+    md_content = generate_markdown_dossier(scenario)
+    headers = {
+        "Content-Disposition": f"attachment; filename=seaLens_Forensic_Dossier_{scenario_id}.md"
+    }
+    return Response(content=md_content, media_type="text/markdown", headers=headers)
 
 @app.get("/api/drift_simulation/{scenario_id}")
 def get_drift_simulation_steps(scenario_id: str):

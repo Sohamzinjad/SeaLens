@@ -79,6 +79,9 @@ class CoastalLandfallPredictor:
         closest_target = None
         has_made_landfall = False
 
+        cumulative_shore_deposit = 0.0
+        total_deflections = 0
+
         for h in range(1, 73):
             # Dynamic wind/current vectors at current location and time
             dyn = self.grid_engine.get_interpolated_vectors(
@@ -96,19 +99,30 @@ class CoastalLandfallPredictor:
             net_v_kmh = dyn["net_v_ms"] * 3.6
 
             # Compute hydrodynamic step routed strictly through waterbodies
-            next_lat, next_lng, is_beached = self.water_engine.compute_hydrodynamic_steered_step(
+            next_lat, next_lng, is_beached, deposit_frac, deflection_cnt = self.water_engine.compute_hydrodynamic_steered_step(
                 current_lat=cur_lat,
                 current_lng=cur_lng,
                 target_u_kmh=net_u_kmh,
                 target_v_kmh=net_v_kmh,
                 dt_hours=1.0,
-                sub_steps=6
+                sub_steps=12
             )
 
             cur_lat = next_lat
             cur_lng = next_lng
+            cumulative_shore_deposit += deposit_frac
+            total_deflections += deflection_cnt
 
             pt_time = (dt_start + timedelta(hours=h)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+            # Weathering & Fay spreading calculations per hour
+            w_state = self.weathering_engine.compute_weathering_state(
+                elapsed_hours=h,
+                initial_volume_m3=initial_volume_m3,
+                wind_speed_ms=dyn["wind_speed_ms"]
+            )
+            slick_area = w_state["slick_area_sqkm"]
+            slick_radius_km = round(math.sqrt(max(0.001, slick_area / math.pi)), 3)
 
             # Dispersion uncertainty cone radius (widens over time, bounded near shoreline)
             cone_radius_km = round(0.4 + 0.15 * math.sqrt(h), 2)
@@ -119,9 +133,14 @@ class CoastalLandfallPredictor:
                 "lat": round(cur_lat, 6),
                 "lng": round(cur_lng, 6),
                 "uncertainty_radius_km": cone_radius_km,
+                "slick_area_sqkm": slick_area,
+                "slick_radius_km": slick_radius_km,
+                "bearing_deg": dyn["bearing_deg"],
                 "wind_speed_ms": dyn["wind_speed_ms"],
                 "current_speed_ms": dyn["current_speed_ms"],
-                "is_landfall_point": is_beached
+                "is_landfall_point": is_beached,
+                "has_deflected": deflection_cnt > 0,
+                "shore_deposit_pct": round(min(100.0, cumulative_shore_deposit * 100.0), 1)
             })
 
             # Check proximity to coastal targets
