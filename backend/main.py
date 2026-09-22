@@ -45,9 +45,11 @@ correlation_engine = AISCorrelationEngine()
 sar_detector = SAROilSpillDetector()
 geotiff_processor = GeoTIFFProcessor()
 cfar_detector = CACFARShipDetector()
+scenario_cfar_detector = CACFARShipDetector()
 dark_vessel_engine = DarkVesselEngine()
 weathering_engine = OilWeatheringEngine()
 landfall_predictor = CoastalLandfallPredictor()
+backtrack_grid_engine = DynamicOceanGridEngine()
 
 # Pre-load PyTorch U-Net weights if available
 unet_model = SAROilSpillUNet(in_channels=1, num_classes=1)
@@ -65,6 +67,57 @@ if os.path.exists(checkpoint_path):
 def health_check():
     return {"status": "operational", "system": "seaLens C2 Engine", "unet_loaded": os.path.exists(checkpoint_path)}
 
+def _scenario_radar_signature_specs(sc: ScenarioData) -> List[Dict[str, Any]]:
+    """Return synthetic SAR-scatterer inputs, never precomputed detector output."""
+    origin = sc.drift_origin_cone["properties"]
+    signatures = [{
+        "lat": origin["origin_lat"],
+        "lng": origin["origin_lng"],
+        "length_px": 12,
+        "beam_px": 4,
+        "intensity": 0.99,
+    }]
+    # Alpha deliberately includes an AIS-silent echo ~3 km from the origin cone.
+    # Its coordinates are derived from the dynamic backtrack rather than a radar result.
+    if sc.id == "scenario_alpha_rogue_tanker":
+        signatures.append({
+            "lat": origin["origin_lat"] - 0.018,
+            "lng": origin["origin_lng"] - 0.018,
+            "length_px": 10,
+            "beam_px": 3,
+            "intensity": 0.99,
+        })
+    elif sc.vessels and sc.vessels[0].positions:
+        position = sc.vessels[0].positions[-1]
+        signatures.append({
+            "lat": position.lat,
+            "lng": position.lng,
+            "length_px": 8,
+            "beam_px": 3,
+            "intensity": 0.99,
+        })
+    return signatures
+
+def _detect_scenario_radar_ships(sc: ScenarioData) -> List[Dict[str, Any]]:
+    """Build/cache a scenario raster, then run CA-CFAR against its actual pixels."""
+    output_dir = "data_samples/scenario_rasters"
+    output_path = os.path.join(output_dir, f"{sc.id}.tif")
+    if not os.path.exists(output_path):
+        bounds = sc.sar_image.bounds
+        center_lat = (bounds[0][0] + bounds[1][0]) / 2.0
+        center_lng = (bounds[0][1] + bounds[1][1]) / 2.0
+        span_deg = max(bounds[1][0] - bounds[0][0], bounds[1][1] - bounds[0][1])
+        geotiff_processor.generate_synthetic_geotiff(
+            output_path,
+            center_lat=center_lat,
+            center_lng=center_lng,
+            span_deg=span_deg,
+            vessel_signatures=_scenario_radar_signature_specs(sc),
+            calm_clutter=True,
+        )
+    raster, transform, _, _ = geotiff_processor.read_geotiff(output_path, normalize=False)
+    return scenario_cfar_detector.detect_ships(raster, transform, pixel_size_m=sc.sar_image.resolution_m)
+
 @app.get("/api/dark_vessels/{scenario_id}")
 def get_dark_vessels(scenario_id: str):
     """
@@ -75,27 +128,9 @@ def get_dark_vessels(scenario_id: str):
         raise HTTPException(status_code=404, detail=f"Scenario '{scenario_id}' not found")
     sc = SCENARIOS[scenario_id]
     
-    # Generate realistic radar ship detections for this scene
     origin_lat = sc.drift_origin_cone["properties"]["origin_lat"]
     origin_lng = sc.drift_origin_cone["properties"]["origin_lng"]
-
-    # In Scenario Alpha, radar detects MT Ocean Titan (AIS on), CMA CGM Mumbai (AIS on),
-    # AND a suspicious 165m unflagged tanker with AIS turned off right near the spill corridor!
-    radar_ships = [
-        {"id": "RADAR-01", "lat": origin_lat + 0.005, "lng": origin_lng + 0.004, "estimated_length_m": 245.0, "estimated_beam_m": 42.0, "cfar_snr_db": 18.5},
-        {"id": "RADAR-02", "lat": 18.885, "lng": 72.320, "estimated_length_m": 366.0, "estimated_beam_m": 51.0, "cfar_snr_db": 22.1},
-    ]
-
-    if scenario_id == "scenario_alpha_rogue_tanker":
-        # Add an evasion dark vessel candidate in outer sector
-        radar_ships.append({
-            "id": "RADAR-03-DARK",
-            "lat": 18.810,
-            "lng": 72.260,
-            "estimated_length_m": 165.0,
-            "estimated_beam_m": 28.0,
-            "cfar_snr_db": 16.2
-        })
+    radar_ships = _detect_scenario_radar_ships(sc)
 
     intel_targets = dark_vessel_engine.cross_match_radar_and_ais(
         radar_ships=radar_ships,
@@ -203,7 +238,9 @@ def get_drift_simulation_steps(scenario_id: str):
         wind_speed_ms=sc.environmental.wind_speed_ms,
         wind_direction_from_deg=sc.environmental.wind_direction_deg,
         current_speed_ms=sc.environmental.current_speed_ms,
-        current_direction_to_deg=sc.environmental.current_direction_deg
+        current_direction_to_deg=sc.environmental.current_direction_deg,
+        grid_engine=backtrack_grid_engine,
+        detection_timestamp=sc.sar_image.acquisition_time,
     )
     return {
         "scenario_id": scenario_id,
@@ -289,4 +326,3 @@ def serve_c2_console():
 
 if __name__ == "__main__":
     uvicorn.run("backend.main:app", host="0.0.0.0", port=8000, reload=True)
-

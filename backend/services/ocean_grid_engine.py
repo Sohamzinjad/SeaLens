@@ -20,7 +20,9 @@ class DynamicOceanGridEngine:
         base_wind_speed: float,
         base_wind_deg: float,
         base_current_speed: float,
-        base_current_deg: float
+        base_current_deg: float,
+        leeway_factor: float = 0.032,
+        coriolis_deg: float = 2.0,
     ) -> Dict[str, Any]:
         """
         Computes dynamic wind and ocean current vector components (u, v) at coordinates (lat, lng)
@@ -58,9 +60,9 @@ class DynamicOceanGridEngine:
         dyn_wind_deg = (base_wind_deg + 5.0 * math.sin(hour_offset / 6.0)) % 360.0
 
         # Wind pushes towards opposite direction (+180 deg)
-        wind_push_rad = math.radians((dyn_wind_deg + 180.0) % 360.0)
-        wind_u = 0.032 * dyn_wind_speed * math.sin(wind_push_rad)
-        wind_v = 0.032 * dyn_wind_speed * math.cos(wind_push_rad)
+        wind_push_rad = math.radians((dyn_wind_deg + 180.0 + coriolis_deg) % 360.0)
+        wind_u = leeway_factor * dyn_wind_speed * math.sin(wind_push_rad)
+        wind_v = leeway_factor * dyn_wind_speed * math.cos(wind_push_rad)
 
         return {
             "wind_speed_ms": round(dyn_wind_speed, 2),

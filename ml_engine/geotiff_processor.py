@@ -21,7 +21,7 @@ class GeoTIFFProcessor:
     def __init__(self, default_crs: str = "EPSG:4326"):
         self.default_crs = default_crs
 
-    def read_geotiff(self, filepath: str) -> Tuple[np.ndarray, Any, List[List[float]], Dict[str, Any]]:
+    def read_geotiff(self, filepath: str, normalize: bool = True) -> Tuple[np.ndarray, Any, List[List[float]], Dict[str, Any]]:
         """
         Reads a GeoTIFF raster file.
         
@@ -51,9 +51,14 @@ class GeoTIFFProcessor:
             bounds = [[18.70, 72.25], [19.00, 72.55]]
             meta = {"driver": "GTiff", "height": raster.shape[0], "width": raster.shape[1]}
 
-        # Normalize raster to [0.0, 1.0] for neural network ingestion
-        p2, p98 = np.percentile(raster, (2, 98))
-        normalized = np.clip((raster - p2) / (p98 - p2 + 1e-6), 0.0, 1.0)
+        # Percentile normalization is useful for U-Net inference, but it expands
+        # ordinary sea-clutter variation and is unsuitable for CFAR statistics.
+        if normalize:
+            p2, p98 = np.percentile(raster, (2, 98))
+            normalized = np.clip((raster - p2) / (p98 - p2 + 1e-6), 0.0, 1.0)
+        else:
+            scale = 65535.0 if float(np.max(raster)) > 1.0 else 1.0
+            normalized = np.clip(raster / scale, 0.0, 1.0)
 
         return normalized, transform, bounds, meta
 
@@ -127,7 +132,9 @@ class GeoTIFFProcessor:
         center_lat: float = 18.85,
         center_lng: float = 72.40,
         span_deg: float = 0.30,
-        resolution_px: int = 512
+        resolution_px: int = 512,
+        vessel_signatures: Optional[List[Dict[str, Any]]] = None,
+        calm_clutter: bool = False,
     ) -> str:
         """
         Generates a valid, georeferenced 16-bit GeoTIFF with synthetic radar backscatter
@@ -142,10 +149,17 @@ class GeoTIFFProcessor:
 
         transform = from_bounds(west, south, east, north, resolution_px, resolution_px) if HAS_RASTERIO else None
 
-        shape_k = 4.0
-        scale_theta = 0.15
-        clutter = np.random.gamma(shape_k, scale_theta, (resolution_px, resolution_px)).astype(np.float32)
-        clutter = np.clip(clutter / 1.5, 0.2, 0.9)
+        if calm_clutter:
+            # Scenario rasters use homogeneous open-water clutter, allowing the
+            # detector to distinguish embedded metallic echoes reproducibly.
+            rng = np.random.default_rng(42)
+            clutter = rng.normal(0.45, 0.025, (resolution_px, resolution_px)).astype(np.float32)
+            clutter = np.clip(clutter, 0.30, 0.60)
+        else:
+            shape_k = 4.0
+            scale_theta = 0.15
+            clutter = np.random.gamma(shape_k, scale_theta, (resolution_px, resolution_px)).astype(np.float32)
+            clutter = np.clip(clutter / 1.5, 0.2, 0.9)
 
         y, x = np.ogrid[:resolution_px, :resolution_px]
         cx, cy = resolution_px // 2 + 30, resolution_px // 2 - 20
@@ -156,7 +170,24 @@ class GeoTIFFProcessor:
         slick_mask = (dx**2 / (80**2) + dy**2 / (25**2)) <= 1.0
         clutter[slick_mask] = clutter[slick_mask] * 0.25
 
-        raw_16bit = (clutter * 65535.0).astype(np.uint16)
+        # Embed bright, elongated point scatterers at known geographic locations.
+        # These are pixel features; CA-CFAR must rediscover them from the raster.
+        for signature in vessel_signatures or []:
+            lat, lng = signature["lat"], signature["lng"]
+            if not (south <= lat <= north and west <= lng <= east):
+                continue
+            if HAS_RASTERIO:
+                row, col = rasterio.transform.rowcol(transform, lng, lat)
+            else:
+                col = int((lng - west) / span_deg * resolution_px)
+                row = int((north - lat) / span_deg * resolution_px)
+            half_length = max(3, int(signature.get("length_px", 7) / 2))
+            half_beam = max(1, int(signature.get("beam_px", 3) / 2))
+            yy, xx = np.ogrid[:resolution_px, :resolution_px]
+            ship_mask = ((xx - col) / half_length) ** 2 + ((yy - row) / half_beam) ** 2 <= 1.0
+            clutter[ship_mask] = float(signature.get("intensity", 0.99))
+
+        raw_16bit = (np.clip(clutter, 0.0, 1.0) * 65535.0).astype(np.uint16)
 
         if HAS_RASTERIO:
             with rasterio.open(

@@ -9,10 +9,12 @@ from backend.models import (
 )
 from ml_engine.sar_detector import SAROilSpillDetector
 from backend.services.drift_engine import DriftEngine
+from backend.services.ocean_grid_engine import DynamicOceanGridEngine
 from backend.services.correlation_engine import AISCorrelationEngine
 
 detector = SAROilSpillDetector()
 drift_engine = DriftEngine()
+ocean_grid_engine = DynamicOceanGridEngine()
 correlation_engine = AISCorrelationEngine()
 
 def build_scenario_alpha() -> ScenarioData:
@@ -75,7 +77,9 @@ def build_scenario_alpha() -> ScenarioData:
         wind_speed_ms=env.wind_speed_ms,
         wind_direction_from_deg=env.wind_direction_deg,
         current_speed_ms=env.current_speed_ms,
-        current_direction_to_deg=env.current_direction_deg
+        current_direction_to_deg=env.current_direction_deg,
+        grid_engine=ocean_grid_engine,
+        detection_timestamp=sar_meta.acquisition_time,
     )
 
     # Vessels in the area between 01:00 UTC and 06:00 UTC
@@ -225,7 +229,9 @@ def build_scenario_beta() -> ScenarioData:
         wind_speed_ms=env.wind_speed_ms,
         wind_direction_from_deg=env.wind_direction_deg,
         current_speed_ms=env.current_speed_ms,
-        current_direction_to_deg=env.current_direction_deg
+        current_direction_to_deg=env.current_direction_deg,
+        grid_engine=ocean_grid_engine,
+        detection_timestamp=sar_meta.acquisition_time,
     )
 
     vessels = [
@@ -367,7 +373,9 @@ def build_scenario_gamma() -> ScenarioData:
         wind_speed_ms=env.wind_speed_ms,
         wind_direction_from_deg=env.wind_direction_deg,
         current_speed_ms=env.current_speed_ms,
-        current_direction_to_deg=env.current_direction_deg
+        current_direction_to_deg=env.current_direction_deg,
+        grid_engine=ocean_grid_engine,
+        detection_timestamp=sar_meta.acquisition_time,
     )
 
     # Nearby fishing trawler
