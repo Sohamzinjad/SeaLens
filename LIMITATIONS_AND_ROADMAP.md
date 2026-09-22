@@ -9,12 +9,12 @@ This document provides a technical audit of the current prototype, identifying w
 
 | Capability Area | Current Prototype State | Enterprise / Defense Target | Gap Severity |
 | :--- | :--- | :--- | :---: |
-| **SAR AI Model** | ✅ PyTorch U-Net with trained `.pt` weights on sliding-window tiles | Scaled multi-GPU distributed inference across Sentinel-1 archives | 🟢 Resolved |
-| **Raw SAR Ingestion** | ✅ 16-bit GeoTIFF parser (`rasterio`), 5x5 Lee speckle filter & WGS84 vectorizer | Direct ESA Copernicus Hub S1 `.SAFE` auto-downloader | 🟢 Resolved |
-| **Dark Vessel Detection** | ✅ 2D CA-CFAR radar detector + AIS cross-matcher (flags AIS-evaders) | Multi-spectral infrared & optical satellite constellation fusion | 🟢 Resolved |
-| **Ocean Drift Physics** | ✅ Dynamic spatio-temporal M2 tidal oscillation & diurnal wind vectors | Live Copernicus CMEMS NetCDF/GRIB2 automated data sync | 🟢 Resolved |
-| **Oil Weathering** | ✅ Stiver-Friesen evaporation, mousse emulsification & Fay spreading | Multi-fraction distillation curve chemical laboratory validation | 🟢 Resolved |
-| **Forward Landfall** | ✅ Forward 72-hour Lagrangian drift forecast & Coastal Landfall ETA | Automated Coast Guard satellite SMS alerting dispatch | 🟢 Resolved |
+| **SAR AI Model** | 🟡 U-Net weights and tiled raster inference run only in `POST /api/process_synthetic_geotiff`; the three interactive scenarios use pre-authored vector slick specifications | Scaled multi-GPU distributed inference across Sentinel-1 archives | 🟡 Medium |
+| **Raw SAR Ingestion** | ✅ `rasterio` 16-bit GeoTIFF decoding, 5x5 Lee filter, and WGS84 vectorization run in `POST /api/process_synthetic_geotiff` | Direct ESA Copernicus Hub S1 `.SAFE` auto-downloader | 🟢 Resolved (prototype path) |
+| **Dark Vessel Detection** | ✅ Each scenario builds/caches a synthetic SAR raster with embedded pixel echoes, runs CA-CFAR, then cross-matches those detections with AIS | Multi-spectral infrared & optical satellite constellation fusion | 🟢 Resolved (synthetic-demo path) |
+| **Reverse Drift / Attribution** | ✅ `DriftEngine.backtrack_origin()` traces each scenario backward in 15-minute steps through modeled dynamic vectors; `backtrack_origin_simple()` remains an explicit constant-vector fallback | Dynamic path-wise CMEMS/GFS fields for attribution | 🟢 Resolved (modeled-grid path) |
+| **Forward Drift / Landfall** | ✅ `CoastalLandfallPredictor` uses `DynamicOceanGridEngine` at each hourly step in `GET /api/forward_drift/{scenario_id}` | Automated Coast Guard satellite SMS alerting dispatch | 🟢 Resolved (prototype path) |
+| **Oil Weathering** | ✅ Simplified evaporation, emulsification, and Fay-spreading curve runs in `GET /api/weathering_simulation/{scenario_id}` and the forward forecast | Multi-fraction distillation curve chemical laboratory validation | 🟢 Resolved (prototype path) |
 | **AIS Ingestion & DB** | In-memory spatial scenarios & Python Haversine math | PostgreSQL + PostGIS with GIST indexing & live AISStream WebSockets | 🟡 Medium |
 | **UI Custom Input** | ✅ 3 Scenarios + "Run GeoTIFF + CFAR" + "72h Landfall & Weathering" in UI | Drag-and-drop satellite image upload & custom AIS file ingestion | 🟡 Medium |
 | **Dossier Export** | Markdown rendering with browser print | Direct binary PDF export with embedded maps & SHA-256 seal | 🟡 Medium |
@@ -24,24 +24,24 @@ This document provides a technical audit of the current prototype, identifying w
 
 ## 1. Computer Vision & Earth Observation Gaps
 
-### 1.1 Lack of Pretrained Deep Learning Weights on Raw Rasters
-* **Current State**: The prototype processes vector geometries and feature attributes (radar backscatter damping in dB, edge sharpness, VV/VH ratio) using a high-level detection pipeline.
-* **What It Lacks**: It does not execute live convolutional inference on raw 2D pixel matrices.
+### 1.1 Scenario Pipeline Does Not Use Raw-Raster U-Net Inference
+* **Current State**: A trained PyTorch U-Net checkpoint is loaded at startup and performs tiled inference on normalized GeoTIFF pixels in `POST /api/process_synthetic_geotiff`. The three interactive scenarios, however, create slick geometry from authored feature specifications through `SAROilSpillDetector.process_sar_scene()`.
+* **What It Lacks**: The primary scenario/demo path does not execute the U-Net on a scenario raster.
 * **Engineering Solution**:
   * Integrate a pretrained PyTorch `U-Net` / `SegFormer-B2` checkpoint trained on the **Deep-SAR** or **Marine Oil Spill Dataset** (e.g., Keras/PyTorch `.pt` or `.onnx` models).
   * Load model weights during startup to generate pixel probability masks from grayscale SAR crops.
 
-### 1.2 Lack of Raw GeoTIFF Raster Decoding (`.SAFE` / `.tif`)
-* **Current State**: Uses normalized geospatial coordinates directly.
-* **What It Lacks**: Does not ingest multi-gigabyte Sentinel-1 Level-1 GRD `.SAFE` zip archives or raw 16-bit GeoTIFFs directly from ESA Copernicus Open Access Hub.
+### 1.2 Raw GeoTIFF Ingestion Scope (`.SAFE` / `.tif`)
+* **Current State**: `GeoTIFFProcessor` decodes local 16-bit GeoTIFFs with `rasterio`, normalizes them, filters speckle, and vectorizes masks in the synthetic-GeoTIFF endpoint.
+* **What It Lacks**: It does not ingest multi-gigabyte Sentinel-1 Level-1 GRD `.SAFE` zip archives or download source data directly from ESA Copernicus Open Access Hub.
 * **Engineering Solution**:
   * Add `rasterio` and `GDAL` pipelines to read GeoTIFF rasters.
   * Apply radiometric calibration: $\sigma^0 = 10 \cdot \log_{10}(DN^2) - K_{\text{cal}}$.
   * Apply a **Lee or Frost speckle suppression filter** ($5 \times 5$ window) to reduce radar granular noise.
 
-### 1.3 Lack of Independent SAR Ship Spotting ("Dark Vessel" Detection)
-* **Current State**: Relies on AIS transmissions to know where vessels are located.
-* **What It Lacks**: If a rogue tanker deliberately powers off its AIS transponder before dumping slops, the system cannot detect the physical metal hull in the radar imagery.
+### 1.3 Independent SAR Ship Spotting ("Dark Vessel" Detection)
+* **Current State**: `GET /api/dark_vessels/{scenario_id}` creates or reuses a scenario GeoTIFF containing embedded ship-like pixel scatterers, runs `CACFARShipDetector`, and sends its output to `DarkVesselEngine` for AIS cross-matching. The scenario raster is synthetic, but detections are derived from pixels rather than a precomputed radar-target list.
+* **What It Lacks**: The prototype does not yet use real satellite scenes, multi-spectral corroboration, or a production vessel-classification model.
 * **Engineering Solution**:
   * Implement a **Constant False Alarm Rate (CFAR)** detector or a lightweight YOLOv8-OBB (Oriented Bounding Box) ship detector to identify bright point scatterers (metallic ships) in SAR.
   * Perform a **Spatial Difference Join**: If SAR detects a physical ship at $(Lat, Lng)$ with *no matching AIS broadcast* within a 5-mile radius, flag as a **"Dark Vessel Alert"**.
@@ -50,25 +50,25 @@ This document provides a technical audit of the current prototype, identifying w
 
 ## 2. Oceanographic & Drift Physics Gaps
 
-### 2.1 Static vs. Dynamic Spatio-Temporal Weather Fields
-* **Current State**: Uses a constant uniform wind vector ($6.2\text{ m/s} @ 225^\circ$) and current vector ($0.45\text{ m/s} @ 45^\circ$) across the entire scene.
-* **What It Lacks**: In real ocean basins, wind and currents vary both across space (grid cells) and over time (hourly tidal cycles).
+### 2.1 Dynamic Modeled Weather Fields vs. Live Observations
+* **Current State**: Reverse attribution uses `DynamicOceanGridEngine` at the particle's changing position and prior time in 15-minute steps. The forward forecast queries the same modeled grid hourly, using M2 tidal oscillation, diurnal wind variation, and a spatial wind term.
+* **What It Lacks**: Neither path currently uses live CMEMS/GFS/HYCOM observations, so the field is a modeled prototype rather than an operational forecast or hindcast.
 * **Engineering Solution**:
   * Integrate with the **Copernicus Marine Environment Monitoring Service (CMEMS)** Global Ocean Physics Analysis (0.083° grid) or **NOAA GFS / HYCOM** APIs.
   * Interpolate $(u, v)$ velocity vectors dynamically along the particle's hourly backtrack path.
 
-### 2.2 Lack of Petroleum Weathering Models
-* **Current State**: Spill volume is estimated statically via the Bonn Agreement surface thickness matrix.
-* **What It Lacks**: Real petroleum undergoes rapid physical and chemical transformation:
+### 2.2 Simplified Petroleum Weathering Models
+* **Current State**: The weathering endpoint and forward forecast run simplified evaporation, emulsification, and Fay-spreading calculations. Static Bonn-matrix volume estimation is also retained at detection time.
+* **What It Lacks**: Real petroleum undergoes rapid physical and chemical transformation that is not yet calibrated to the sampled oil:
   * **Evaporation**: Up to $50\%$ of light hydrocarbon fractions evaporate within the first 24 hours.
   * **Emulsification ("Chocolate Mousse")**: Water-in-oil emulsification increases slick volume by up to $300\%$ and increases viscosity.
   * **Fay's Spreading Law**: Three distinct spreading regimes (Gravity-Inertia, Gravity-Viscous, and Surface Tension-Viscous).
 * **Engineering Solution**:
   * Incorporate simplified Mackay / ADIOS2 evaporation and emulsification rate equations into `backend/services/drift_engine.py`.
 
-### 2.3 Lack of Forward Drift & Coastal Landfall ETA
-* **Current State**: The system only runs in reverse (backtracking to find the culprit).
-* **What It Lacks**: Once a spill is detected, coast guard incident response teams need to know **where the slick is heading next**.
+### 2.3 Forward Drift & Coastal Landfall ETA Scope
+* **Current State**: `GET /api/forward_drift/{scenario_id}` runs a 72-hour, hourly forward simulation with dynamic modeled vectors and checks proximity against an in-code coastal-target list.
+* **What It Lacks**: It does not use authoritative coastline shapefiles or live conditions, so its ETA is a prototype planning estimate rather than an operational prediction.
 * **Engineering Solution**:
   * Add a Forward Lagrangian Simulation ($+24\text{h}$, $+48\text{h}$, $+72\text{h}$).
   * Compute intersection with coastline shapefiles to provide: **"Landfall Impact ETA: 14.2 hours at Alibag Beach"**.

@@ -18,8 +18,8 @@ For a detailed breakdown of what the current prototype has vs. what it lacks for
 
 ### Quick Gap Summary:
 * **CV/ML**: High-level geometric/feature segmentation is implemented; needs pretrained PyTorch `.pt` weights for raw 16-bit GeoTIFF inference.
-* **Radar Ship Detection**: AIS correlation is active; needs CFAR/YOLO ship detection to catch "Dark Vessels" that turn off AIS.
-* **Physics**: 2D constant Lagrangian backtrack is active; dynamic CMEMS/GFS gridded fields & forward landfall ETA are planned for Phase 2.
+* **Radar Ship Detection**: Scenario SAR rasters run CA-CFAR before AIS cross-matching; live satellite scenes and vessel classification remain future work.
+* **Physics**: 15-minute dynamic modeled-vector reverse backtracking and dynamic forward landfall forecasting are active; live CMEMS/GFS gridded fields remain future work.
 * **Database**: In-memory spatial index with Haversine math is active; full PostGIS cluster is planned for production scale.
 
 ---

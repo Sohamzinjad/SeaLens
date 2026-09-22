@@ -25,16 +25,18 @@ def generate_markdown_dossier(scenario: ScenarioData) -> str:
     report = f"""# 🚨 MARITIME SENTINEL: FORENSIC INCIDENT DOSSIER
 **NATIONAL TECHNICAL RESEARCH ORGANISATION (NTRO) / MARITIME ENFORCEMENT**
 **INCIDENT REF:** `INC-{scenario.id.upper()}`
-**CLASSIFICATION:** RESTRICTED // FORENSIC EVIDENCE
+**CLASSIFICATION:** RESTRICTED // INVESTIGATIVE ANALYSIS
+
+> **Investigative-use notice:** This dossier presents probabilistic findings derived from available SAR imagery, AIS telemetry, and ocean-drift modelling. Match scores rank vessels for follow-up investigation and physical inspection; they are not proof of responsibility. Corroborate these results with validated source data, witness or inspection evidence, and applicable legal process before an enforcement or legal decision.
 
 ---
 
 ## 1. INCIDENT OVERVIEW & EXECUTIVE SUMMARY
 - **Incident Area:** {scenario.region_name}
 - **Satellite Detection Time:** {scenario.sar_image.acquisition_time}
-- **Primary Attribution Finding:** **{primary_suspect.verdict if primary_suspect else 'NO CULPRIT'}**
-- **Identified Target:** `{suspect_name}` (MMSI: `{suspect_mmsi}`, Flag: `{suspect_flag}`)
-- **Attribution Confidence Score:** **{suspect_score}**
+- **Highest-Probability Match:** **{primary_suspect.verdict if primary_suspect else 'NO MATCH'}**
+- **Primary Suspect:** `{suspect_name}` (MMSI: `{suspect_mmsi}`, Flag: `{suspect_flag}`)
+- **Investigative Match Score:** **{suspect_score}**
 
 ---
 
@@ -60,9 +62,9 @@ def generate_markdown_dossier(scenario: ScenarioData) -> str:
 
 ---
 
-## 4. AIS VESSEL CORRELATION & ATTRIBUTION MATRIX
+## 4. AIS VESSEL CORRELATION & INVESTIGATIVE MATCH MATRIX
 
-| Rank | Vessel Name | MMSI | Type | Flag | CPA Dist | Proximity | Speed Anomaly | Alignment | Composite Score | Verdict |
+| Rank | Vessel Name | MMSI | Type | Flag | CPA Dist | Proximity | Speed Anomaly | Alignment | Match Score | Investigative Status |
 | :---: | :--- | :---: | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 """
     for c in scenario.culprits:
@@ -82,11 +84,11 @@ def generate_markdown_dossier(scenario: ScenarioData) -> str:
     report += f"""
 ---
 
-## 6. LEGAL CERTIFICATION & CHAIN OF CUSTODY
-This automated forensic evidence dossier has been generated via automated SAR Earth Observation analytics and verified cryptographic AIS trajectory correlation. Prepared for maritime regulatory enforcement under MARPOL 73/78 Annex I regulations.
+## 6. ANALYSIS RECORD & CHAIN OF CUSTODY
+This automated analytical dossier was generated from the prototype's SAR Earth Observation and AIS trajectory-correlation outputs. It supports investigation under MARPOL 73/78 Annex I regulations and requires independent corroboration before it is used as evidence of responsibility.
 
 - **Generated At:** {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%SZ')}
 - **Integrity Digest:** `SHA256:7f83b1657ff1...verified`
-- **Action Recommended:** Dispatch Coast Guard Interceptor / Issue Port State Control Detention Order upon arrival.
+- **Action Recommended:** Preserve source data and prioritize the highest-probability match for lawful inspection and corroborating investigation.
 """
     return report
