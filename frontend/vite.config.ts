@@ -25,12 +25,19 @@ export default defineConfig({
       },
     },
   },
+  resolve: {
+    tsconfigPaths: true,
+  },
   plugins: [
     tsconfigPaths(),
     tanstackStart({
+      spa: { enabled: true },
+      prerender: { enabled: true },
       server: { entry: "server" },
     }),
     react(),
     tailwindcss(),
   ],
 });
+
+

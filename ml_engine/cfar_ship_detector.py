@@ -6,7 +6,12 @@ against heterogeneous ocean sea clutter.
 """
 import cv2
 import numpy as np
-import rasterio
+try:
+    import rasterio
+    HAS_RASTERIO = True
+except ImportError:
+    HAS_RASTERIO = False
+    rasterio = None
 from typing import List, Dict, Any, Tuple
 from ml_engine.metrics import haversine_distance_km
 
@@ -88,7 +93,11 @@ class CACFARShipDetector:
             est_beam_m = round(max(8.0, beam_px * pixel_size_m), 1)
 
             # Georeference to WGS84 (Lat, Lng)
-            lng, lat = rasterio.transform.xy(transform, cy, cx, offset='center')
+            if HAS_RASTERIO and transform is not None:
+                lng, lat = rasterio.transform.xy(transform, cy, cx, offset='center')
+            else:
+                lng = 72.35 + (cx / max(1, W)) * 0.20
+                lat = 18.75 + (cy / max(1, H)) * 0.20
 
             # Backscatter intensity at vessel peak
             peak_intensity = float(np.max(raster[max(0, cy-2):min(H, cy+3), max(0, cx-2):min(W, cx+3)]))

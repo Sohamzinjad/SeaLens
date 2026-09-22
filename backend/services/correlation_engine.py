@@ -9,6 +9,7 @@ from datetime import datetime
 from typing import List, Dict, Any, Tuple
 from ml_engine.metrics import haversine_distance_km
 from backend.models import VesselTrack, SlickPolygon, CulpritMatch, TelemetryPoint
+from backend.services.behavioral_anomaly_engine import BehavioralAnomalyEngine
 
 VESSEL_TYPE_PRIORS = {
     "Crude Oil Tanker": 95.0,
@@ -28,16 +29,19 @@ class AISCorrelationEngine:
     def __init__(
         self,
         max_search_radius_km: float = 8.0,
-        w_prox: float = 0.40,
-        w_speed: float = 0.20,
-        w_vessel: float = 0.20,
-        w_align: float = 0.20
+        w_prox: float = 0.35,
+        w_speed: float = 0.15,
+        w_vessel: float = 0.15,
+        w_align: float = 0.15,
+        w_behavioral: float = 0.20
     ):
         self.max_search_radius_km = max_search_radius_km
         self.w_prox = w_prox
         self.w_speed = w_speed
         self.w_vessel = w_vessel
         self.w_align = w_align
+        self.w_behavioral = w_behavioral
+        self.behavioral_engine = BehavioralAnomalyEngine()
 
     def find_closest_approach(
         self,
@@ -131,12 +135,17 @@ class AISCorrelationEngine:
             # 4. Heading / Track Alignment
             align_score = self.calculate_alignment_score(closest_pt.cog, slick.orientation_deg)
 
+            # 5. Behavioral Anomaly Intelligence Scoring
+            beh_profile = self.behavioral_engine.analyze_vessel_track(track)
+            behavioral_score = beh_profile.behavioral_risk_score
+
             # Composite Weighted Score
             composite = (
                 self.w_prox * prox_score +
                 self.w_speed * speed_score +
                 self.w_vessel * vessel_score +
-                self.w_align * align_score
+                self.w_align * align_score +
+                self.w_behavioral * behavioral_score
             )
             composite = round(min(100.0, max(0.0, composite)), 1)
 
@@ -158,12 +167,21 @@ class AISCorrelationEngine:
             if align_score >= 80.0:
                 evidence_notes.append(f"Trajectory Alignment: Vessel course ({closest_pt.cog:.0f}°) matches slick elongation axis ({slick.orientation_deg:.0f}°) within ±10°.")
 
+            if beh_profile.is_watchlist_target:
+                evidence_notes.append(f"🚨 PRE-INCIDENT WATCHLIST MATCH: Pre-flagged with Risk Score {beh_profile.behavioral_risk_score}% prior to satellite detection.")
+
+            for note in beh_profile.summary_notes:
+                if note not in evidence_notes:
+                    evidence_notes.append(note)
+
             if composite >= 70.0:
                 verdict = "PRIMARY SUSPECT"
             elif composite >= 50.0:
                 verdict = "POTENTIAL CONTRIBUTOR"
             else:
                 verdict = "CLEARED"
+
+            behavioral_anomalies_str = [a.description for a in beh_profile.anomalies]
 
             matches.append(CulpritMatch(
                 mmsi=meta.mmsi,
@@ -175,11 +193,13 @@ class AISCorrelationEngine:
                 speed_anomaly_score=round(speed_score, 1),
                 vessel_type_score=round(vessel_score, 1),
                 alignment_score=round(align_score, 1),
+                behavioral_score=round(behavioral_score, 1),
                 closest_approach_distance_km=min_dist_km,
                 closest_approach_time=closest_pt.timestamp,
                 rank=0,
                 verdict=verdict,
-                evidence_notes=evidence_notes
+                evidence_notes=evidence_notes,
+                behavioral_anomalies=behavioral_anomalies_str
             ))
 
         # Sort matches descending by composite score
@@ -188,3 +208,4 @@ class AISCorrelationEngine:
             match.rank = idx + 1
 
         return matches
+
