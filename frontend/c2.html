@@ -196,6 +196,21 @@
         inset 0 1px 0 rgba(255,255,255,0.95);
     }
 
+    /* A short map viewport truncates the sidebar above the bottom controls.
+       On wide displays, move the status pill into the clear map gutter; on
+       narrower displays, hide this non-essential duplicate status indicator. */
+    @media (max-height: 720px) and (min-width: 1700px) {
+      .live-ais-badge {
+        left: 415px;
+      }
+    }
+
+    @media (max-height: 720px) and (max-width: 1699px) {
+      .live-ais-badge {
+        display: none;
+      }
+    }
+
     /* ──────────────────────────────────────────
        MAPLIBRE POPUP OVERRIDES FOR SLEEK CARDS
     ────────────────────────────────────────── */
@@ -560,6 +575,7 @@
             <option value="scenario_delta_gulf_of_kutch">Gulf of Kutch (Vadinar SPM)</option>
             <option value="scenario_epsilon_gulf_of_mannar">Gulf of Mannar (Dark STS)</option>
             <option value="scenario_zeta_lakshadweep">Lakshadweep (9-Degree Channel)</option>
+            <option value="scenario_wakashio_validation">Historical Validation Case: MV Wakashio, Mauritius 2020 — Pointe d'Esny reef grounding</option>
           </select>
         </div>
         <h1 id="regionName" class="text-2xl font-black tracking-tight text-neutral-900 leading-none">Singapore Strait</h1>
@@ -774,7 +790,7 @@
     </div>
 
     <!-- FLOATING BOTTOM LEFT LIVE BADGE -->
-    <div class="absolute bottom-4 left-4 z-20 glass-pill-sleek px-3.5 py-2 rounded-2xl flex items-center space-x-2 text-xs font-sans pointer-events-auto" style="animation: fadeUp 0.6s 0.3s cubic-bezier(0.22,1,0.36,1) both;">
+    <div class="live-ais-badge absolute bottom-4 left-4 z-20 glass-pill-sleek px-3.5 py-2 rounded-2xl flex items-center space-x-2 text-xs font-sans pointer-events-auto" style="animation: fadeUp 0.6s 0.3s cubic-bezier(0.22,1,0.36,1) both;">
       <span class="relative flex w-2 h-2">
         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-70"></span>
         <span class="relative inline-flex rounded-full w-2 h-2 bg-emerald-500"></span>
