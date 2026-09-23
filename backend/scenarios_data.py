@@ -841,6 +841,68 @@ def build_scenario_zeta() -> ScenarioData:
         culprits=culprits
     )
 
+def build_scenario_wakashio_validation() -> ScenarioData:
+    """Historical MV Wakashio backtest using the same dynamic drift and AIS pipeline."""
+    # These values are reasonable August southern-Indian-Ocean estimates for a
+    # demonstration only; they are not sourced ERA5/CMEMS observations.
+    env = EnvironmentalCondition(
+        wind_speed_ms=5.5, wind_direction_deg=110.0,
+        current_speed_ms=0.25, current_direction_deg=260.0,
+        sea_state=3, surface_temp_c=25.0,
+    )
+    # Approximate Pointe d'Esny reef coordinate used only as the public reference.
+    reef_lat, reef_lng = -20.438, 57.759
+    sar_meta = SARImageMetadata(
+        scene_id="HISTORICAL_WAKASHIO_BACKTEST_20200807T120000",
+        satellite="Simulated SAR backtest input",
+        mode="Historical validation simulation",
+        polarization="VV + VH",
+        acquisition_time="2020-08-07T12:00:00Z",  # After leakage began around 6 Aug.
+        bounds=[[-20.60, 57.50], [-20.25, 57.95]],
+        resolution_m=10.0,
+        image_url="/sar_samples/scenario_wakashio_validation.jpg",
+    )
+    # Simulated SAR slick is offset from the reef, so reverse drift has real work.
+    slick_coords = [
+        [57.505, -20.440], [57.520, -20.435], [57.535, -20.442],
+        [57.525, -20.450], [57.510, -20.450], [57.505, -20.440],
+    ]
+    slicks = [SlickPolygon(**slick) for slick in detector.process_sar_scene(
+        scene_id=sar_meta.scene_id, base_lat=-20.443, base_lng=57.520,
+        wind_speed_ms=env.wind_speed_ms,
+        slick_specs=[{"polygon_coords": slick_coords, "radar_damping_db": 8.8,
+                      "edge_sharpness": 0.84, "thickness_microns": 2.5}],
+    )]
+    origin_lat, origin_lng, origin_cone = drift_engine.backtrack_origin(
+        detect_lat=slicks[0].centroid.lat, detect_lng=slicks[0].centroid.lng,
+        elapsed_hours=12.0, wind_speed_ms=env.wind_speed_ms,
+        wind_direction_from_deg=env.wind_direction_deg,
+        current_speed_ms=env.current_speed_ms,
+        current_direction_to_deg=env.current_direction_deg,
+        grid_engine=ocean_grid_engine, detection_timestamp=sar_meta.acquisition_time,
+    )
+    wakashio = VesselTrack(
+        metadata=VesselMetadata(mmsi=353371000, imo=9337119, name="MV Wakashio",
+            callsign="3EIX5", ship_type="Bulk Carrier", flag="Panama",
+            length_m=299.95, beam_m=50.0, gross_tonnage=101932, risk_weight=1.2),
+        # Half-hourly AIS observations show continuous, stationary grounded status;
+        # they intentionally avoid inventing an AIS-gap concealment signal.
+        positions=[TelemetryPoint(
+            timestamp=f"2020-08-07T{minutes // 60:02d}:{minutes % 60:02d}:00Z",
+            lat=reef_lat, lng=reef_lng, sog=0.0, cog=0.0, heading=0.0,
+            nav_status="Aground",
+        ) for minutes in range(0, 721, 30)],
+    )
+    culprits = correlation_engine.correlate_incident(slicks[0], origin_lat, origin_lng, [wakashio])
+    return ScenarioData(
+        id="scenario_wakashio_validation",
+        title="Historical Validation Case: MV Wakashio, Mauritius 2020 (publicly documented incident — Pointe d'Esny reef grounding, 25 Jul 2020; oil leakage from ~6 Aug 2020; used to validate system accuracy through backtesting against a known, independently verified outcome)",
+        description="Historical backtest against a known, independently verified outcome; not a live investigation or a claim to solve an unknown attribution.",
+        region_name="Mauritius // Pointe d'Esny reef (historical validation)",
+        sar_image=sar_meta, environmental=env, slicks=slicks, vessels=[wakashio],
+        drift_origin_cone=origin_cone, culprits=culprits,
+    )
+
 SCENARIOS: Dict[str, ScenarioData] = {
     "scenario_beta_singapore_strait": build_scenario_beta(),
     "scenario_alpha_rogue_tanker": build_scenario_alpha(),
@@ -848,5 +910,5 @@ SCENARIOS: Dict[str, ScenarioData] = {
     "scenario_delta_gulf_of_kutch": build_scenario_delta(),
     "scenario_epsilon_gulf_of_mannar": build_scenario_epsilon(),
     "scenario_zeta_lakshadweep": build_scenario_zeta(),
+    "scenario_wakashio_validation": build_scenario_wakashio_validation(),
 }
-

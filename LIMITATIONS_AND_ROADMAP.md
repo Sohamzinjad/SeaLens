@@ -118,6 +118,10 @@ This document provides a technical audit of the current prototype, identifying w
 
 ## 5. How to Pitch These Limitations to Hackathon Judges
 
+## Historical Validation: MV Wakashio Backtest
+
+`scenario_wakashio_validation` is a historical backtest, not a live incident or a claim to solve an unknown attribution. It submits a simulated post-leak SAR observation to the normal scenario CFAR, dynamic-backtrack, and AIS-correlation paths. Its weather inputs are explicitly estimated, while the public facts and reference location remain separate from the system output. The dossier reports the derived-origin offset and uses the stationary grounded AIS record as a direct spatial correlation, rather than falsely applying concealment or moving-vessel heuristics.
+
 When presenting to NTRO / SIH judges, turn these gaps into a strength by presenting a **Clear Phase 1 (Built) vs. Phase 2 (Production Roadmap)**:
 
 ```

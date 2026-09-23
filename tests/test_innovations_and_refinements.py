@@ -59,15 +59,15 @@ def test_sha256_cryptographic_evidence_dossier():
     sha256_hex = match.group(1)
     assert len(sha256_hex) == 64
 
-def test_all_six_scenarios():
-    assert len(SCENARIOS) == 6
+def test_all_seven_scenarios():
+    assert len(SCENARIOS) == 7
     assert "scenario_delta_gulf_of_kutch" in SCENARIOS
     assert "scenario_epsilon_gulf_of_mannar" in SCENARIOS
     assert "scenario_zeta_lakshadweep" in SCENARIOS
+    assert "scenario_wakashio_validation" in SCENARIOS
 
     for sc_id, sc in SCENARIOS.items():
         assert sc.id == sc_id
         assert len(sc.slicks) > 0
         assert len(sc.vessels) > 0
         assert sc.sar_image.scene_id is not None
-

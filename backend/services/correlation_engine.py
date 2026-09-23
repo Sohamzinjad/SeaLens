@@ -139,14 +139,31 @@ class AISCorrelationEngine:
             beh_profile = self.behavioral_engine.analyze_vessel_track(track)
             behavioral_score = beh_profile.behavioral_risk_score
 
-            # Composite Weighted Score
-            composite = (
-                self.w_prox * prox_score +
-                self.w_speed * speed_score +
-                self.w_vessel * vessel_score +
-                self.w_align * align_score +
-                self.w_behavioral * behavioral_score
+            # Grounding incidents are not deliberate underway discharges.  A vessel
+            # stationary at the modeled source for an extended period is a direct
+            # spatial correlation; speed-window and course-alignment heuristics do
+            # not apply, and behavioral anomalies are intentionally not invented.
+            is_grounded_stationary = (
+                len(positions) >= 2
+                and all(p.sog <= 0.5 and "aground" in p.nav_status.lower() for p in positions)
+                and min_dist_km <= 3.0
             )
+            if is_grounded_stationary:
+                prox_score = 100.0
+                speed_score = 0.0
+                align_score = 0.0
+
+            # Composite Weighted Score
+            if is_grounded_stationary:
+                composite = 0.70 * prox_score + 0.15 * vessel_score + 0.15 * behavioral_score
+            else:
+                composite = (
+                    self.w_prox * prox_score +
+                    self.w_speed * speed_score +
+                    self.w_vessel * vessel_score +
+                    self.w_align * align_score +
+                    self.w_behavioral * behavioral_score
+                )
             composite = round(min(100.0, max(0.0, composite)), 1)
 
             # Evidence & Verdict
@@ -156,7 +173,11 @@ class AISCorrelationEngine:
             else:
                 evidence_notes.append(f"Proximity: Passed within {min_dist_km:.2f} km of estimated origin at {closest_pt.timestamp}.")
 
-            if 4.0 <= closest_pt.sog <= 8.5:
+            if is_grounded_stationary:
+                evidence_notes.append(
+                    "Stationary grounding correlation: the vessel remained aground at the publicly known reef and is within 3 km of the independently backtracked origin. Underway speed and course heuristics were not applied."
+                )
+            elif 4.0 <= closest_pt.sog <= 8.5:
                 evidence_notes.append(f"Speed Anomaly: SOG of {closest_pt.sog:.1f} knots matches characteristic tank-washing/slop-discharge profile.")
             else:
                 evidence_notes.append(f"SOG recorded at {closest_pt.sog:.1f} knots during passage.")
@@ -208,4 +229,3 @@ class AISCorrelationEngine:
             match.rank = idx + 1
 
         return matches
-

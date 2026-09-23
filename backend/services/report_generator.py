@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Dict, Any
 from backend.models import ScenarioData
 from backend.services.repeat_offender_engine import RepeatOffenderEngine
+from ml_engine.metrics import haversine_distance_km
 
 repeat_engine = RepeatOffenderEngine()
 
@@ -33,6 +34,7 @@ def generate_markdown_dossier(scenario: ScenarioData) -> str:
     report = f"""# 🚨 MARITIME SENTINEL: FORENSIC INCIDENT DOSSIER
 **NATIONAL TECHNICAL RESEARCH ORGANISATION (NTRO) / MARITIME ENFORCEMENT**
 **INCIDENT REF:** `INC-{scenario.id.upper()}`
+**SCENARIO:** {scenario.title}
 **CLASSIFICATION:** RESTRICTED // INVESTIGATIVE ANALYSIS
 
 > **Investigative-use notice:** This dossier presents probabilistic findings derived from available SAR imagery, AIS telemetry, and ocean-drift modelling. Match scores rank vessels for follow-up investigation and physical inspection; they are not proof of responsibility. Corroborate these results with validated source data, witness or inspection evidence, and applicable legal process before an enforcement or legal decision.
@@ -42,16 +44,10 @@ def generate_markdown_dossier(scenario: ScenarioData) -> str:
 ## 1. INCIDENT OVERVIEW & EXECUTIVE SUMMARY
 - **Incident Area:** {scenario.region_name}
 - **Satellite Detection Time:** {scenario.sar_image.acquisition_time}
-<<<<<<< HEAD
 - **Highest-Probability Match:** **{primary_suspect.verdict if primary_suspect else 'NO MATCH'}**
 - **Primary Suspect:** `{suspect_name}` (MMSI: `{suspect_mmsi}`, Flag: `{suspect_flag}`)
 - **Investigative Match Score:** **{suspect_score}**
-=======
-- **Primary Attribution Finding:** **{primary_suspect.verdict if primary_suspect else 'NO CULPRIT'}**
-- **Identified Target:** `{suspect_name}` (MMSI: `{suspect_mmsi}`, Flag: `{suspect_flag}`)
-- **Attribution Confidence Score:** **{suspect_score}**
 - **Repeat Offender Classification:** **{repeat_profile.serial_offender_level}** ({repeat_profile.total_incidents_logged} logged violations)
->>>>>>> pr-2
 
 ---
 
@@ -117,10 +113,35 @@ def generate_markdown_dossier(scenario: ScenarioData) -> str:
         for note in primary_suspect.evidence_notes:
             report += f"- ✅ {note}\n"
 
+    if scenario.id == "scenario_wakashio_validation":
+        props = scenario.drift_origin_cone["properties"]
+        reef_lat, reef_lng = -20.438, 57.759
+        origin_offset_km = haversine_distance_km(
+            props["origin_lat"], props["origin_lng"], reef_lat, reef_lng
+        )
+        report += f"""
+
+---
+
+## 7. VALIDATION RESULT — BACKTEST, NOT MYSTERY-SOLVING
+
+This historical case does not claim to discover an unknown culprit: the Pointe d'Esny grounding is already public record. The backtest asks whether the normal pipeline, given a simulated post-leak SAR observation and estimated environmental inputs, independently converges on that known location and vessel.
+
+- **System-derived backtracked origin:** `{props['origin_lat']}°N, {props['origin_lng']}°E`
+- **System-derived vessel match:** `{suspect_name}` — `{primary_suspect.verdict if primary_suspect else 'NO MATCH'}` ({suspect_score})
+- **Public-record reference:** MV Wakashio grounded at Pointe d'Esny reef on 25 July 2020; oil leakage began around 6 August 2020; the vessel broke apart on 15 August 2020.
+- **Reference reef coordinate for this demonstration:** `{reef_lat}°N, {reef_lng}°E` (approximate)
+- **Derived-origin distance from reference reef:** **{origin_offset_km:.2f} km**
+- **Timing comparison:** the model's simulated source time is `2020-08-07T00:00:00Z`, approximately **12 days 0 hours after the 25 July grounding**. This is not treated as an error: public records describe leakage beginning around 6 August, but do not provide an exact leak-start hour for this comparison.
+- **Stationary-vessel resolution:** Wakashio's continuous `Aground`/0-knot AIS points are scored as a direct stationary-origin correlation. Underway speed-window, course-alignment, and concealment-behavior heuristics are deliberately excluded.
+- **Input caveat:** Wind and current values are reasonable demonstration estimates, not date-specific ERA5/CMEMS observations.
+- **Public-record sources (not system-derived):** [IMO Wakashio response](https://www.imo.org/en/mediacentre/hottopics/pages/wakashio-faq.aspx) and [Mauritius Ministry of Environment](https://environment.govmu.org/Pages/wakashio.aspx).
+"""
+
     report += f"""
 ---
 
-## 7. LEGAL CERTIFICATION & CHAIN OF CUSTODY
+## {'8' if scenario.id == 'scenario_wakashio_validation' else '7'}. LEGAL CERTIFICATION & CHAIN OF CUSTODY
 This automated forensic evidence dossier has been generated via automated SAR Earth Observation analytics and verified cryptographic AIS trajectory correlation. It supports maritime regulatory enforcement and investigation under MARPOL 73/78 Annex I regulations, requiring independent corroboration before use as sole evidence of responsibility.
 
 - **Generated At:** {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%SZ')}
@@ -129,5 +150,3 @@ This automated forensic evidence dossier has been generated via automated SAR Ea
 - **Prosecution Action Recommended:** {repeat_profile.recommended_interception_protocol}
 """
     return report
-
-
