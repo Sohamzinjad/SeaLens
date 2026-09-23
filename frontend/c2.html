@@ -2190,7 +2190,26 @@
 
     // Forensic Dossier Modal
     const dossierModal = document.getElementById('dossierModal');
+    const isLocalFilePreview = window.location.protocol === 'file:';
+    const localServerInstructions = [
+      'This dashboard is being opened as a local HTML file, so its API features cannot connect.',
+      '',
+      'From the SlickWatch project folder, run:',
+      '  python3 start.py',
+      '',
+      'Then open:',
+      '  http://localhost:8000/c2',
+      '',
+      'The live API is required for scenarios, dossiers, CFAR detection, and drift simulations.'
+    ].join('\n');
+
     document.getElementById('btnDossier').addEventListener('click', async () => {
+      const contentEl = document.getElementById('dossierMarkdownContent');
+      if (isLocalFilePreview) {
+        if (contentEl) contentEl.textContent = localServerInstructions;
+        dossierModal.classList.remove('hidden');
+        return;
+      }
       const scenarioId = currentScenarioData?.id || 'scenario_alpha_rogue_tanker';
       try {
         const res = await fetch(`/api/dossier/${scenarioId}/markdown`);
@@ -2198,12 +2217,16 @@
           throw new Error(`Server returned HTTP ${res.status}`);
         }
         const mdText = await res.text();
-        const contentEl = document.getElementById('dossierMarkdownContent');
         if (contentEl) {
           contentEl.textContent = mdText;
         }
         dossierModal.classList.remove('hidden');
-      } catch (e) { alert("Error loading dossier: " + (e.message || e)); }
+      } catch (e) {
+        if (contentEl) {
+          contentEl.textContent = `Unable to load the dossier. Start seaLens with \`python3 start.py\`, then open \`http://localhost:8000/c2\`.\n\nTechnical detail: ${e.message || e}`;
+        }
+        dossierModal.classList.remove('hidden');
+      }
     });
 
     document.getElementById('btnCloseDossier').addEventListener('click', () => {
