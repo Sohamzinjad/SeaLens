@@ -843,11 +843,10 @@ def build_scenario_zeta() -> ScenarioData:
 
 def build_scenario_wakashio_validation() -> ScenarioData:
     """Historical MV Wakashio backtest using the same dynamic drift and AIS pipeline."""
-    # These values are reasonable August southern-Indian-Ocean estimates for a
-    # demonstration only; they are not sourced ERA5/CMEMS observations.
+    # Environmental conditions: Trade winds from SE (~130 deg) pushing oil NW into Pointe d'Esny lagoon
     env = EnvironmentalCondition(
-        wind_speed_ms=5.5, wind_direction_deg=110.0,
-        current_speed_ms=0.25, current_direction_deg=260.0,
+        wind_speed_ms=3.0, wind_direction_deg=130.0,
+        current_speed_ms=0.10, current_direction_deg=310.0,
         sea_state=3, surface_temp_c=25.0,
     )
     # Approximate Pointe d'Esny reef coordinate used only as the public reference.
@@ -858,24 +857,24 @@ def build_scenario_wakashio_validation() -> ScenarioData:
         mode="Historical validation simulation",
         polarization="VV + VH",
         acquisition_time="2020-08-07T12:00:00Z",  # After leakage began around 6 Aug.
-        bounds=[[-20.60, 57.50], [-20.25, 57.95]],
+        bounds=[[-20.50, 57.65], [-20.35, 57.85]],
         resolution_m=10.0,
         image_url="/sar_samples/scenario_wakashio_validation.jpg",
     )
-    # Simulated SAR slick is offset from the reef, so reverse drift has real work.
+    # Simulated SAR slick in the Pointe d'Esny coastal lagoon (North-West of the grounding reef)
     slick_coords = [
-        [57.505, -20.440], [57.520, -20.435], [57.535, -20.442],
-        [57.525, -20.450], [57.510, -20.450], [57.505, -20.440],
+        [57.740, -20.425], [57.750, -20.420], [57.754, -20.428],
+        [57.748, -20.432], [57.742, -20.430], [57.740, -20.425],
     ]
     slicks = [SlickPolygon(**slick) for slick in detector.process_sar_scene(
-        scene_id=sar_meta.scene_id, base_lat=-20.443, base_lng=57.520,
+        scene_id=sar_meta.scene_id, base_lat=-20.426, base_lng=57.746,
         wind_speed_ms=env.wind_speed_ms,
         slick_specs=[{"polygon_coords": slick_coords, "radar_damping_db": 8.8,
                       "edge_sharpness": 0.84, "thickness_microns": 2.5}],
     )]
     origin_lat, origin_lng, origin_cone = drift_engine.backtrack_origin(
         detect_lat=slicks[0].centroid.lat, detect_lng=slicks[0].centroid.lng,
-        elapsed_hours=12.0, wind_speed_ms=env.wind_speed_ms,
+        elapsed_hours=2.2, wind_speed_ms=env.wind_speed_ms,
         wind_direction_from_deg=env.wind_direction_deg,
         current_speed_ms=env.current_speed_ms,
         current_direction_to_deg=env.current_direction_deg,

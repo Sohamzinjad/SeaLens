@@ -76,6 +76,16 @@ KALPENI_ATOLL_COORDS = [
     [73.630, 10.040]
 ]
 
+# 7. Mauritius Island (Indian Ocean)
+MAURITIUS_ISLAND_COORDS = [
+    [57.600, -19.980], [57.570, -20.000], [57.500, -20.100],
+    [57.480, -20.150], [57.380, -20.200], [57.340, -20.320],
+    [57.310, -20.440], [57.420, -20.520], [57.530, -20.530],
+    [57.700, -20.440], [57.730, -20.440], [57.720, -20.380],
+    [57.800, -20.240], [57.780, -20.180], [57.700, -20.060],
+    [57.600, -19.980]
+]
+
 
 class CoastalWaterRoutingEngine:
     def __init__(self):
@@ -90,7 +100,8 @@ class CoastalWaterRoutingEngine:
             Polygon(TAMIL_NADU_COORDS),
             Polygon(SRI_LANKA_NORTH_COORDS),
             Polygon(CHENNAI_MAINLAND_COORDS),
-            Polygon(KALPENI_ATOLL_COORDS)
+            Polygon(KALPENI_ATOLL_COORDS),
+            Polygon(MAURITIUS_ISLAND_COORDS)
         ]
         self.multi_land = MultiPolygon(self.land_polygons)
 

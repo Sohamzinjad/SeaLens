@@ -46,6 +46,11 @@ COASTAL_TARGETS = [
     # Lakshadweep Archipelago
     {"name": "Kalpeni Atoll Coral Lagoon & Turtle Sanctuary", "lat": 10.080, "lng": 73.640, "type": "Atoll Coral Lagoon", "vulnerability": "CRITICAL", "region": "Lakshadweep"},
     {"name": "Androth Island Coastal Reefs", "lat": 10.820, "lng": 73.680, "type": "Coral Habitat", "vulnerability": "HIGH", "region": "Lakshadweep"},
+
+    # Mauritius Sector
+    {"name": "Ile aux Aigrettes Coral & Nature Sanctuary", "lat": -20.420, "lng": 57.730, "type": "Islet Nature Reserve & Coral Habitat", "vulnerability": "CRITICAL", "region": "Mauritius"},
+    {"name": "Pointe d'Esny RAMSAR Wetland & Mangroves", "lat": -20.435, "lng": 57.720, "type": "RAMSAR Wetland Ecosystem", "vulnerability": "CRITICAL", "region": "Mauritius"},
+    {"name": "Blue Bay Marine Park UNESCO Reserve", "lat": -20.445, "lng": 57.715, "type": "UNESCO Marine Park", "vulnerability": "CRITICAL", "region": "Mauritius"},
 ]
 
 class CoastalLandfallPredictor:
