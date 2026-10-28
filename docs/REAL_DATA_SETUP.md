@@ -53,3 +53,35 @@ receiver coverage gaps and missing broadcasts are possible.
 - [Element 84 Sentinel-1 STAC](https://earth-search.aws.element84.com/v1)
 - [MarineCadastre AIS access](https://marinecadastre.gov/accessais/)
 - [NOAA 2024 AIS bulk index](https://noaaocm.blob.core.windows.net/ais/csv2/csv2024/index.html)
+# Real wind and ocean-current grids
+
+The API now has a met-ocean preparation path that caches only a small spatial
+and time window per incident, then uses bilinear spatial interpolation and
+linear time interpolation at each 15-minute reverse-drift step:
+
+* `POST /api/real-data/metocean/prepare` fetches credential-free NOAA NOMADS
+  GFS 0.25-degree `UGRD`/`VGRD` 10-m wind subsets where the requested time is
+  within the operational GFS window.
+* `POST /api/real-data/metocean/backtrack` uses those cached fields with the
+  existing step-wise `DriftEngine.backtrack_origin` path. Its response states
+  whether wind/current data came from a provider grid or the offline fallback.
+* Copernicus Marine `uo`/`vo` surface currents are fetched through the official
+  Toolbox only when its local credentials have been configured. The API never
+  accepts, stores, or exposes a password.
+
+To enable currents on the Mac that runs seaLens, create a free Copernicus
+Marine account, then set these values only in that Mac's terminal environment
+before starting the server:
+
+```bash
+export COPERNICUSMARINE_SERVICE_USERNAME='your-account-email'
+export COPERNICUSMARINE_SERVICE_PASSWORD='your-password-or-token'
+```
+
+If a historical backtest is requested, GFS is intentionally not substituted
+with present-day wind: GFS is an operational forecast, not a historical
+archive. Configure a Copernicus historical/reanalysis dataset through
+`SEALENS_CMEMS_DATASET_ID` for a historical incident. Until both field sources
+cover a step, seaLens keeps the existing modelled grid as a visibly-labelled
+offline fallback. Cached grids are stored locally under
+`data_samples/metocean_cache/` and are ignored by Git.

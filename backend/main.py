@@ -3,6 +3,7 @@ seaLens: Oil Spill Detection & AIS Vessel Correlation System.
 FastAPI Main Application and REST API Endpoints.
 """
 import os
+from datetime import datetime
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse, JSONResponse, Response
@@ -11,13 +12,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from typing import Dict, Any, List
 from pydantic import BaseModel, Field
 
-from backend.models import ScenarioData, CulpritMatch
+from backend.models import ScenarioData, CulpritMatch, GeoPoint, SlickPolygon
 from backend.scenarios_data import SCENARIOS, build_scenario_alpha, build_scenario_beta, build_scenario_gamma
 from backend.services.report_generator import generate_markdown_dossier
 from backend.services.drift_engine import DriftEngine
 from backend.services.correlation_engine import AISCorrelationEngine
 from backend.services.dark_vessel_engine import DarkVesselEngine
 from backend.services.ocean_grid_engine import DynamicOceanGridEngine
+from backend.services.metocean_service import MetOceanError, RealMetOceanGridEngine
 from backend.services.weathering_engine import OilWeatheringEngine
 from backend.services.landfall_predictor import CoastalLandfallPredictor
 from backend.services.behavioral_anomaly_engine import BehavioralAnomalyEngine
@@ -81,6 +83,7 @@ dark_vessel_engine = DarkVesselEngine()
 weathering_engine = OilWeatheringEngine()
 landfall_predictor = CoastalLandfallPredictor()
 backtrack_grid_engine = DynamicOceanGridEngine()
+real_metocean_grid_engine = RealMetOceanGridEngine()
 
 
 class SentinelSearchRequest(BaseModel):
@@ -118,9 +121,104 @@ class NOAAAISCorrelationRequest(BaseModel):
     slick_orientation_deg: float = Field(default=0.0, ge=0, lt=360)
     max_vessels: int = Field(default=500, ge=1, le=2000)
 
+
+class MetOceanPrepareRequest(BaseModel):
+    """Inputs for caching the smallest available met-ocean grids around an incident."""
+    incident_id: str = Field(default="live-incident", min_length=1, max_length=80)
+    bbox: List[float] = Field(min_length=4, max_length=4)
+    detection_timestamp: str
+    history_hours: float = Field(default=6.0, ge=0, le=72)
+    forecast_hours: float = Field(default=0.0, ge=0, le=120)
+    fetch_copernicus: bool = True
+
+
+class RealMetOceanBacktrackRequest(MetOceanPrepareRequest):
+    detection_lat: float = Field(ge=-90, le=90)
+    detection_lng: float = Field(ge=-180, le=180)
+    elapsed_hours: float = Field(default=6.0, ge=0, le=72)
+    # These values are used only when one of the real provider grids is absent.
+    fallback_wind_speed_ms: float = Field(default=8.0, ge=0, le=50)
+    fallback_wind_from_deg: float = Field(default=90.0, ge=0, lt=360)
+    fallback_current_speed_ms: float = Field(default=0.35, ge=0, le=5)
+    fallback_current_to_deg: float = Field(default=110.0, ge=0, lt=360)
+
 @app.get("/api/health")
 def health_check():
     return {"status": "operational", "system": "seaLens C2 Engine", "unet_loaded": os.path.exists(checkpoint_path)}
+
+
+@app.get("/api/real-data/metocean/status")
+def metocean_status():
+    """Show exactly which real met-ocean providers are available locally."""
+    return real_metocean_grid_engine.provider_status()
+
+
+@app.post("/api/real-data/metocean/prepare")
+def prepare_real_metocean(request: MetOceanPrepareRequest):
+    """Cache small GFS/CMEMS fields for an incident; never fabricate a provider result."""
+    try:
+        return real_metocean_grid_engine.prepare_incident(**request.model_dump())
+    except MetOceanError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/real-data/metocean/backtrack")
+def backtrack_with_real_metocean(request: RealMetOceanBacktrackRequest):
+    """Run the existing 15-minute backtrack against cached real fields when available.
+
+    The response carries source provenance per vector.  ``modelled_fallback`` is
+    true whenever GFS wind or Copernicus currents could not cover a step.
+    """
+    try:
+        prepared = real_metocean_grid_engine.prepare_incident(
+            incident_id=request.incident_id,
+            bbox=request.bbox,
+            detection_timestamp=request.detection_timestamp,
+            history_hours=max(request.history_hours, request.elapsed_hours),
+            forecast_hours=request.forecast_hours,
+            fetch_copernicus=request.fetch_copernicus,
+        )
+        origin_lat, origin_lng, origin_cone = drift_engine.backtrack_origin(
+            detect_lat=request.detection_lat,
+            detect_lng=request.detection_lng,
+            elapsed_hours=request.elapsed_hours,
+            wind_speed_ms=request.fallback_wind_speed_ms,
+            wind_direction_from_deg=request.fallback_wind_from_deg,
+            current_speed_ms=request.fallback_current_speed_ms,
+            current_direction_to_deg=request.fallback_current_to_deg,
+            grid_engine=real_metocean_grid_engine,
+            detection_timestamp=request.detection_timestamp,
+            step_hours=0.25,
+        )
+        vector_at_detection = real_metocean_grid_engine.get_interpolated_vectors(
+            lat=request.detection_lat,
+            lng=request.detection_lng,
+            hour_offset=datetime.fromisoformat(request.detection_timestamp.replace("Z", "+00:00")).timestamp() / 3600.0,
+            base_wind_speed=request.fallback_wind_speed_ms,
+            base_wind_deg=request.fallback_wind_from_deg,
+            base_current_speed=request.fallback_current_speed_ms,
+            base_current_deg=request.fallback_current_to_deg,
+            leeway_factor=drift_engine.leeway_factor,
+            coriolis_deg=drift_engine.coriolis_deg,
+        )
+        origin_cone["properties"]["metocean"] = {
+            "wind_source": vector_at_detection["wind_source"],
+            "current_source": vector_at_detection["current_source"],
+            "modelled_fallback": vector_at_detection["modelled_fallback"],
+        }
+        return {
+            "derived_origin": {"lat": origin_lat, "lng": origin_lng},
+            "origin_cone": origin_cone,
+            "step_minutes": 15,
+            "metocean_at_detection": vector_at_detection,
+            "cache": prepared,
+            "notice": (
+                "Backtracking is probabilistic investigative support, not proof. "
+                "Check source provenance: a modelled fallback is not real measured/grid data."
+            ),
+        }
+    except (MetOceanError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.get("/api/real-data/default-case")
