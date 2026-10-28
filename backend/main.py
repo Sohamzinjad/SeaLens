@@ -9,6 +9,7 @@ from fastapi.responses import HTMLResponse, PlainTextResponse, JSONResponse, Res
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Dict, Any, List
+from pydantic import BaseModel, Field
 
 from backend.models import ScenarioData, CulpritMatch
 from backend.scenarios_data import SCENARIOS, build_scenario_alpha, build_scenario_beta, build_scenario_gamma
@@ -22,6 +23,14 @@ from backend.services.landfall_predictor import CoastalLandfallPredictor
 from backend.services.behavioral_anomaly_engine import BehavioralAnomalyEngine
 from backend.services.repeat_offender_engine import RepeatOffenderEngine
 from backend.services.intelligence_brief_generator import generate_intelligence_brief
+from backend.services.real_data_service import (
+    US_GULF_RTC_2020,
+    RealDataError,
+    download_noaa_ais_subset,
+    download_sentinel_crop,
+    public_case_manifest,
+    search_sentinel_scenes,
+)
 from ml_engine.sar_detector import SAROilSpillDetector
 from ml_engine.geotiff_processor import GeoTIFFProcessor
 from ml_engine.cfar_ship_detector import CACFARShipDetector
@@ -72,9 +81,131 @@ weathering_engine = OilWeatheringEngine()
 landfall_predictor = CoastalLandfallPredictor()
 backtrack_grid_engine = DynamicOceanGridEngine()
 
+
+class SentinelSearchRequest(BaseModel):
+    bbox: List[float] = Field(default_factory=lambda: list(US_GULF_RTC_2020.bbox), min_length=4, max_length=4)
+    start: str = US_GULF_RTC_2020.acquisition_start
+    end: str = US_GULF_RTC_2020.acquisition_end
+    limit: int = Field(default=10, ge=1, le=25)
+
+
+class SentinelCropRequest(BaseModel):
+    asset_url: str
+    bbox: List[float] = Field(default_factory=lambda: list(US_GULF_RTC_2020.bbox), min_length=4, max_length=4)
+    max_pixels: int = Field(default=2048, ge=128, le=4096)
+
+
+class NOAAAISImportRequest(BaseModel):
+    day: str = US_GULF_RTC_2020.ais_day
+    bbox: List[float] = Field(default_factory=lambda: list(US_GULF_RTC_2020.bbox), min_length=4, max_length=4)
+    max_records: int = Field(default=20_000, ge=1, le=100_000)
+    start_time: str = US_GULF_RTC_2020.acquisition_start
+    end_time: str = US_GULF_RTC_2020.acquisition_end
+    # Acknowledge the national archive is large before the server starts a fetch.
+    allow_large_download: bool = False
+
+
+class RealCropAnalysisRequest(BaseModel):
+    filename: str
+    threshold: float = Field(default=0.45, ge=0.05, le=0.95)
+
 @app.get("/api/health")
 def health_check():
     return {"status": "operational", "system": "seaLens C2 Engine", "unet_loaded": os.path.exists(checkpoint_path)}
+
+
+@app.get("/api/real-data/default-case")
+def get_real_data_default_case():
+    """Describe the selected public Sentinel-1 + NOAA AIS alignment case."""
+    return public_case_manifest()
+
+
+@app.post("/api/real-data/sentinel/search")
+def search_real_sentinel(request: SentinelSearchRequest):
+    """Discover public Sentinel-1 GRD scenes for a WGS84 area/time range."""
+    try:
+        scenes = search_sentinel_scenes(request.bbox, request.start, request.end, request.limit)
+        return {
+            "source": "Element 84 AWS Open Data Sentinel-1 STAC",
+            "query": request.model_dump(),
+            "scenes": scenes,
+            "attribution": "Contains modified Copernicus Sentinel data when a selected asset is downloaded or processed.",
+        }
+    except RealDataError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/real-data/sentinel/crop")
+def crop_real_sentinel(request: SentinelCropRequest):
+    """Create a small local GeoTIFF crop via public, anonymous S3 range reads."""
+    try:
+        safe_scene_name = os.path.basename(request.asset_url).replace(".tiff", "")
+        output_path = os.path.join("data_samples", "real_data", f"{safe_scene_name}_crop.tif")
+        result = download_sentinel_crop(request.asset_url, request.bbox, output_path, request.max_pixels)
+        result["warning"] = "Real satellite data is investigative input only; validate processing and corroborate any finding before operational interpretation."
+        return result
+    except RealDataError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/real-data/noaa-ais/import")
+def import_noaa_ais(request: NOAAAISImportRequest):
+    """Cache only AIS positions inside the requested local bounding box."""
+    if not request.allow_large_download:
+        raise HTTPException(
+            status_code=409,
+            detail="NOAA daily AIS archives are large. Set allow_large_download=true to begin the public download.",
+        )
+    try:
+        output_path = os.path.join("data_samples", "real_data", f"noaa_ais_{request.day}_subset.csv")
+        return download_noaa_ais_subset(
+            request.day,
+            request.bbox,
+            output_path,
+            request.max_records,
+            request.start_time,
+            request.end_time,
+        )
+    except RealDataError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/real-data/analyze-crop")
+def analyze_real_sentinel_crop(request: RealCropAnalysisRequest):
+    """Run the existing Lee-filter, U-Net and CA-CFAR path on a real cached crop.
+
+    Unlike the synthetic endpoint, this path never invents a fallback slick or
+    ship list: a zero detection is returned as a zero detection.
+    """
+    filename = os.path.basename(request.filename)
+    if filename != request.filename or not filename.endswith(".tif"):
+        raise HTTPException(status_code=400, detail="filename must name a cached .tif crop")
+    crop_path = os.path.join("data_samples", "real_data", filename)
+    if not os.path.isfile(crop_path):
+        raise HTTPException(status_code=404, detail="Crop not found. Run /api/real-data/sentinel/crop first.")
+    try:
+        raster, transform, bounds, meta = geotiff_processor.read_geotiff(crop_path)
+        filtered = geotiff_processor.apply_lee_speckle_filter(raster, window_size=5)
+        polygons = []
+        if unet_model is not None:
+            mask, _ = unet_model.predict_large_raster(filtered, tile_size=256, threshold=request.threshold)
+            polygons = geotiff_processor.mask_to_geojson_polygons(mask, transform)
+        radar_ships = cfar_detector.detect_ships(raster, transform)
+        return {
+            "status": "success",
+            "input": "real_public_sentinel_rtc_crop",
+            "filename": filename,
+            "bounds": bounds,
+            "raster_metadata": {"crs": str(meta.get("crs")), "width": meta.get("width"), "height": meta.get("height")},
+            "slick_polygons_detected_count": len(polygons),
+            "slick_polygons": polygons,
+            "radar_ships_detected_count": len(radar_ships),
+            "radar_ships": radar_ships,
+            "notice": "Automated detections are probabilistic investigative leads, not proof of an oil spill or vessel responsibility.",
+            "attribution": "Contains modified Copernicus Sentinel data (2020).",
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Real SAR analysis failed: {exc}") from exc
 
 def _scenario_radar_signature_specs(sc: ScenarioData) -> List[Dict[str, Any]]:
     """Return synthetic SAR-scatterer inputs, never precomputed detector output."""
