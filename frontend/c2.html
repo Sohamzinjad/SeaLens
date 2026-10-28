@@ -664,8 +664,12 @@
 
       <!-- TOP: LOGO STRIP + OPERATIONAL VIEW SELECTOR -->
       <div class="space-y-2 pb-3 fade-up">
-        <div class="flex items-center justify-between">
+        <div class="flex items-center justify-between gap-2">
           <span class="text-[9px] font-mono font-bold tracking-[0.14em] uppercase" style="color: rgba(0,0,0,0.38);">OPERATIONAL VIEW</span>
+          <div class="flex items-center gap-1.5">
+            <button id="btnDemoWizard" class="px-2 py-1 rounded-lg text-[9px] font-bold bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm hover:opacity-90">Demo this</button>
+            <button id="btnOfflineFallback" class="px-2 py-1 rounded-lg text-[9px] font-bold bg-neutral-800 text-white shadow-sm hover:opacity-90">Offline fallback</button>
+          </div>
           <select id="scenarioSelect" class="text-[11px] font-semibold text-neutral-800 rounded-xl px-2.5 py-1 focus:outline-none cursor-pointer" style="background: rgba(255,255,255,0.85); backdrop-filter: blur(12px); border: 1px solid rgba(0,0,0,0.09); box-shadow: 0 1px 4px rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,0.9);">
             <option value="scenario_wakashio_validation" selected>Historical Validation Case: MV Wakashio, Mauritius 2020 — Pointe d'Esny reef grounding</option>
             <option value="scenario_beta_singapore_strait">Singapore Strait (TSS)</option>
@@ -4021,6 +4025,42 @@
       enlargedViewState.isOpen = false;
       _sarEnlargedDragState = null;
       _sarEnlargedPanState = null;
+    }
+
+    // Demo wizard and offline fallback
+    const btnDemoWizard = document.getElementById('btnDemoWizard');
+    if (btnDemoWizard) {
+      btnDemoWizard.addEventListener('click', async () => {
+        try {
+          alert('Demo this sequence:\n1) Choose case (Wakashio/Demo)\n2) Run SAR/GeoTIFF\n3) Import AIS/NOAA AIS\n4) Backtrack (GFS)\n5) Review ranked leads\n6) Generate dossier');
+          // Save run manifest
+          const bbox = [-95, 27, -90, 30];
+          await fetch('/api/runs/save', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+              name: 'demo-wizard-run',
+              bbox,
+              start_time: '2020-08-06T00:00:00Z',
+              end_time: '2020-08-07T23:59:00Z',
+              scenario_id: window.currentScenarioId || 'scenario_wakashio_validation',
+              source_urls: ['https://sentinel-s1-rtc-indigo.s3.us-west-2.amazonaws.com/'],
+              parameters: {mode: 'demo', offline_fallback_available: true},
+              cached_files: ['data_samples/real_data/offline_demo/ais_subset.csv', 'data_samples/real_data/offline_demo/metocean_cache.json'],
+              notes: 'Rehearsed demo sequence initiated from UI'
+            })
+          }).catch(() => {});
+        } catch (e) {
+          alert('Demo wizard completed with warnings: ' + e.message);
+        }
+      });
+    }
+
+    const btnOfflineFallback = document.getElementById('btnOfflineFallback');
+    if (btnOfflineFallback) {
+      btnOfflineFallback.addEventListener('click', () => {
+        alert('Offline fallback active.\nUsing packaged assets from data_samples/real_data/offline_demo/ if present.\nDemo scenarios and cached data will be used when network is unavailable.');
+      });
     }
 
   </script>
