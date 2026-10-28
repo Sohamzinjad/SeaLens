@@ -1,0 +1,12 @@
+{
+  "checkpoint_path": "ml_engine/checkpoints/sar_unet_oil_spill.pt",
+  "exists": false,
+  "sha256": null,
+  "loaded_at_runtime": "checked in code",
+  "metadata": {
+    "architecture": "UNet",
+    "in_channels": 1,
+    "num_classes": 1
+  },
+  "note": "Compute SHA256 on load if checkpoint exists"
+}

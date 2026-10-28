@@ -1,0 +1,45 @@
+# seaLens U-Net Training Configuration
+# Reproducible training setup
+experiment_name: sar_unet_oil_spill
+seed: 42
+
+data:
+  images_dir: data/sar/images
+  masks_dir: data/sar/masks
+  split_method: scene_level  # CRITICAL: prevents leakage
+  train_scenes: []
+  val_scenes: []
+  test_scenes: []
+  image_size: 512
+  normalize: true
+
+model:
+  architecture: UNet
+  in_channels: 1
+  out_channels: 1
+  features: [64, 128, 256, 512]
+
+training:
+  batch_size: 4
+  num_epochs: 100
+  learning_rate: 0.0001
+  weight_decay: 0.00001
+  early_stopping_patience: 15
+  loss: bce_dice
+  optimizer: adam
+  scheduler: reduce_on_plateau
+
+augmentations:
+  horizontal_flip: true
+  vertical_flip: true
+  rotation: 90
+  elastic_transform: false  # disabled for SAR safety
+
+checkpoint:
+  save_dir: ml_engine/checkpoints
+  save_best_only: true
+  metric: val_dice
+
+reproducibility:
+  deterministic: true
+  cudnn_benchmark: false

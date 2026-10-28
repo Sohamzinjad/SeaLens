@@ -1,0 +1,60 @@
+{
+  "model_name": "seaLens-SAR-OilSpill-UNet",
+  "version": "1.0.0",
+  "model_type": "UNet (PyTorch)",
+  "task": "Semantic segmentation of oil spills in Sentinel-1 SAR imagery",
+  "framework": "PyTorch",
+  "architecture": {
+    "type": "U-Net",
+    "in_channels": 1,
+    "out_channels": 1,
+    "input_size": 512
+  },
+  "training_data": {
+    "status": "NOT_FULLY_DOCUMENTED",
+    "sources": [],
+    "licenses": [],
+    "sar_images": "UNKNOWN",
+    "oil_spill_examples": "UNKNOWN",
+    "non_spill_examples": "UNKNOWN",
+    "synthetic": "MIXED/UNKNOWN",
+    "split_method": "scene_level_required_not_verified"
+  },
+  "intended_use": "Investigative support for maritime domain awareness. Identify potential oil slicks for further investigation.",
+  "out_of_scope": [
+    "Automated enforcement without human verification",
+    "Definitive proof of responsibility",
+    "Small sheens in certain conditions",
+    "All weather conditions"
+  ],
+  "limitations": [
+    "Look-alikes (biogenic films, wind shadows, low-wind zones, rain cells) cause false positives",
+    "Performance varies by region/season not in training data",
+    "Confidence scores are uncalibrated",
+    "Requires scene-level validation",
+    "CFAR ship detection is separate and not validated by this model"
+  ],
+  "metrics": {
+    "status": "NOT_EVALUATED_ON_COMMITTED_HELDOUT_SET",
+    "precision": null,
+    "recall": null,
+    "f1": null,
+    "iou": null,
+    "dice": null,
+    "false_positive_rate": null
+  },
+  "baseline_comparison": {
+    "status": "NOT_COMPLETED"
+  },
+  "calibration": {
+    "calibrated": false,
+    "note": "Confidence should not be interpreted as probability"
+  },
+  "ethical_considerations": "This system provides investigative leads only, not proof. All outputs require human verification and independent corroboration.",
+  "reproducibility": {
+    "checkpoint": "ml_engine/checkpoints/sar_unet_oil_spill.pt",
+    "config": "ml_engine/training/config.yaml",
+    "seed": 42,
+    "split_verification": "scripts/verify_split.py"
+  }
+}
