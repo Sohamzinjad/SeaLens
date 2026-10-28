@@ -835,7 +835,17 @@ def serve_c2_console():
     c2_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "c2.html")
     if os.path.exists(c2_path):
         with open(c2_path, "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
+            content = f.read()
+        # A previous UI merge accidentally retained two complete dashboard
+        # bodies in this source file. Serve the shared document head once and
+        # the newest body once, preventing the stacked/duplicated console
+        # while the source is kept intact for recovery of its feature history.
+        dashboard_body = '<body class="h-screen w-screen'
+        first_body = content.find(dashboard_body)
+        second_body = content.find(dashboard_body, first_body + 1) if first_body >= 0 else -1
+        if first_body >= 0 and second_body >= 0:
+            content = content[:first_body] + content[second_body:]
+        return HTMLResponse(content=content)
     return HTMLResponse("<h1>Sealens C2 Console</h1><p>frontend/c2.html not found</p>")
 
 if __name__ == "__main__":
