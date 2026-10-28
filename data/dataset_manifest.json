@@ -1,0 +1,28 @@
+{
+  "version": "1.0.0",
+  "created_at": "2026-01-01T00:00:00Z",
+  "description": "Dataset manifest for seaLens SAR oil spill detection - PLACEHOLDER",
+  "status": "NOT_POPULATED",
+  "training": {
+    "sources": [],
+    "licenses": [],
+    "sar_images": 0,
+    "oil_spill_examples": 0,
+    "non_spill_examples": 0,
+    "synthetic": true,
+    "note": "Training data details not committed. Must be populated before production use."
+  },
+  "splits": {
+    "method": "scene_level_required",
+    "train": [],
+    "val": [],
+    "test": [],
+    "leakage_check": "NOT_VERIFIED"
+  },
+  "evaluation": {
+    "metrics": ["precision", "recall", "f1", "iou", "dice", "fp_rate"],
+    "baseline_comparison": false,
+    "calibrated": false,
+    "cfar_validated_separately": false
+  }
+}
