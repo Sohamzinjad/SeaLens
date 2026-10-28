@@ -1514,6 +1514,8 @@
 
 
     let currentScenarioData = null;
+    let currentRunId = null;
+    let currentRunManifest = null;
     let activeMarkers = [];
     let activeVesselMarkers = new Map(); // keyed by MMSI for smooth reuse
     let activeVesselList = [];
@@ -1554,8 +1556,17 @@
     map.on('load', () => {
       applyOceanStyling();
       setupMapLayers();
-      loadScenario('scenario_wakashio_validation');
-      updateStatusBanner('scenario_wakashio_validation');
+      try {
+        const replay = localStorage.getItem('seaLens_replay');
+        if (replay) {
+          const r = JSON.parse(replay);
+          if (r.scenario_id) { const sel = document.getElementById('scenarioSelect'); if (sel) { sel.value = r.scenario_id; sel.dispatchEvent(new Event('change')); } }
+          localStorage.removeItem('seaLens_replay');
+        } else {
+          loadScenario('scenario_wakashio_validation');
+          updateStatusBanner('scenario_wakashio_validation');
+        }
+      } catch(e) { loadScenario('scenario_wakashio_validation'); updateStatusBanner('scenario_wakashio_validation'); }
     });
 
     map.on('style.load', () => {
@@ -2109,6 +2120,26 @@
         map.flyTo({ center: selectedVesselCoord, zoom: 13.5, duration: 1000 });
       }
     });
+
+    // Global fetch wrapper for network failure detection
+    const _origFetch = window.fetch;
+    window.fetch = async function(...args) {
+      try {
+        const res = await _origFetch.apply(this, args);
+        return res;
+      } catch (e) {
+        if (e && (e.message.includes('Failed to fetch') || e.message.includes('NetworkError'))) {
+          try {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black/40 backdrop-blur-sm z-[80] flex items-center justify-center p-4';
+            modal.innerHTML = `<div class="w-full max-w-sm rounded-3xl bg-white shadow-2xl overflow-hidden p-5 space-y-2"><div class="text-sm font-extrabold">Network failure detected</div><div class="text-xs text-neutral-600">Using offline fallback with packaged assets.</div><div class="text-[10px] font-mono text-neutral-500">data_samples/real_data/offline_demo/ (small_sar_crop.tif, ais_subset.csv, metocean_cache.json)</div><button id="offOk" class="px-3 py-1 rounded-lg bg-neutral-900 text-white text-[10px]">OK</button></div>`;
+            document.body.appendChild(modal);
+            modal.querySelector('#offOk').onclick = () => modal.remove();
+          } catch(_) {}
+        }
+        throw e;
+      }
+    };
 
     function updateStatusBanner(scenarioId) {
       const banner = document.getElementById('statusBanner');
@@ -2984,6 +3015,17 @@
     // 2. BUTTON ACTION: RUN GEOTIFF + CFAR PIPELINE
     // ────────────────────────────────────────────────────────────
     const btnGeoTIFF = document.getElementById('btnGeoTIFF');
+
+    async function captureRunEvent(action, details = {}) {
+      try {
+        if (!currentRunId) {
+          const bbox = [-95, 27, -90, 30];
+          const r = await fetch('/api/runs/save', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'auto-captured-run',bbox,start_time: details.start_time||'2020-08-06T00:00:00Z',end_time: details.end_time||'2020-08-07T23:59:00Z',scenario_id: window.currentScenarioId||'scenario_wakashio_validation',source_urls: details.source_urls||[],parameters: {last_action: action, ...details},cached_files: details.cached_files||[],notes: 'Auto-captured'})});
+          const j = await r.json(); currentRunId = j.run_id; currentRunManifest = j.manifest;
+        }
+      } catch(e) { console.log('run capture skip', e); }
+    }
+
     const btnRealData = document.getElementById('btnRealData');
     const btnNOAAAIS = document.getElementById('btnNOAAAIS');
     const radarHud = document.getElementById('radarHudOverlay');
@@ -2997,7 +3039,7 @@
 
     // This path uses a real, public analysis-ready Sentinel-1 RTC COG. It has
     // no synthetic fallback: failure remains visible rather than manufacturing a result.
-    if (btnRealData) btnRealData.addEventListener('click', async () => {
+    if (btnRealData) btnRealData.addEventListener('click', async () => { captureRunEvent('run_sar_real', {source_urls:['https://sentinel-s1-rtc-indigo.s3.us-west-2.amazonaws.com/']});
       const original = btnRealData.innerHTML;
       if (window.location.protocol === 'file:') {
         alert('Real public-data analysis requires the seaLens API.\n\nStart it from the project folder:\npython3 start.py\n\nThen open:\nhttp://localhost:8000/c2\n\nTip: Use a local server (not file://) to avoid CORS/Failed to fetch errors.');
@@ -3041,7 +3083,7 @@
       }
     });
 
-    if (btnNOAAAIS) btnNOAAAIS.addEventListener('click', async () => {
+    if (btnNOAAAIS) btnNOAAAIS.addEventListener('click', async () => { captureRunEvent('import_noaa_ais', {source_urls:['https://coast.noaa.gov/htdata/CMSP/AISDataHandler/']});
       if (window.location.protocol === 'file:') {
         alert('NOAA AIS import requires the seaLens API.\n\nStart it from the project folder:\npython3 start.py\n\nThen open:\nhttp://localhost:8000/c2\n\nTip: Use a local server (not file://) to avoid CORS/Failed to fetch errors.');
         return;
@@ -5595,6 +5637,8 @@
 
 
     let currentScenarioData = null;
+    let currentRunId = null;
+    let currentRunManifest = null;
     let activeMarkers = [];
     let activeVesselMarkers = new Map(); // keyed by MMSI for smooth reuse
     let activeVesselList = [];
@@ -5635,8 +5679,17 @@
     map.on('load', () => {
       applyOceanStyling();
       setupMapLayers();
-      loadScenario('scenario_wakashio_validation');
-      updateStatusBanner('scenario_wakashio_validation');
+      try {
+        const replay = localStorage.getItem('seaLens_replay');
+        if (replay) {
+          const r = JSON.parse(replay);
+          if (r.scenario_id) { const sel = document.getElementById('scenarioSelect'); if (sel) { sel.value = r.scenario_id; sel.dispatchEvent(new Event('change')); } }
+          localStorage.removeItem('seaLens_replay');
+        } else {
+          loadScenario('scenario_wakashio_validation');
+          updateStatusBanner('scenario_wakashio_validation');
+        }
+      } catch(e) { loadScenario('scenario_wakashio_validation'); updateStatusBanner('scenario_wakashio_validation'); }
     });
 
     map.on('style.load', () => {
@@ -6190,6 +6243,26 @@
         map.flyTo({ center: selectedVesselCoord, zoom: 13.5, duration: 1000 });
       }
     });
+
+    // Global fetch wrapper for network failure detection
+    const _origFetch = window.fetch;
+    window.fetch = async function(...args) {
+      try {
+        const res = await _origFetch.apply(this, args);
+        return res;
+      } catch (e) {
+        if (e && (e.message.includes('Failed to fetch') || e.message.includes('NetworkError'))) {
+          try {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black/40 backdrop-blur-sm z-[80] flex items-center justify-center p-4';
+            modal.innerHTML = `<div class="w-full max-w-sm rounded-3xl bg-white shadow-2xl overflow-hidden p-5 space-y-2"><div class="text-sm font-extrabold">Network failure detected</div><div class="text-xs text-neutral-600">Using offline fallback with packaged assets.</div><div class="text-[10px] font-mono text-neutral-500">data_samples/real_data/offline_demo/ (small_sar_crop.tif, ais_subset.csv, metocean_cache.json)</div><button id="offOk" class="px-3 py-1 rounded-lg bg-neutral-900 text-white text-[10px]">OK</button></div>`;
+            document.body.appendChild(modal);
+            modal.querySelector('#offOk').onclick = () => modal.remove();
+          } catch(_) {}
+        }
+        throw e;
+      }
+    };
 
     function updateStatusBanner(scenarioId) {
       const banner = document.getElementById('statusBanner');
@@ -7078,7 +7151,7 @@
 
     // This path uses a real, public analysis-ready Sentinel-1 RTC COG. It has
     // no synthetic fallback: failure remains visible rather than manufacturing a result.
-    if (btnRealData) btnRealData.addEventListener('click', async () => {
+    if (btnRealData) btnRealData.addEventListener('click', async () => { captureRunEvent('run_sar_real', {source_urls:['https://sentinel-s1-rtc-indigo.s3.us-west-2.amazonaws.com/']});
       const original = btnRealData.innerHTML;
       if (window.location.protocol === 'file:') {
         alert('Real public-data analysis requires the seaLens API.\n\nStart it from the project folder:\npython3 start.py\n\nThen open:\nhttp://localhost:8000/c2\n\nTip: Use a local server (not file://) to avoid CORS/Failed to fetch errors.');
@@ -7122,7 +7195,7 @@
       }
     });
 
-    if (btnNOAAAIS) btnNOAAAIS.addEventListener('click', async () => {
+    if (btnNOAAAIS) btnNOAAAIS.addEventListener('click', async () => { captureRunEvent('import_noaa_ais', {source_urls:['https://coast.noaa.gov/htdata/CMSP/AISDataHandler/']});
       if (window.location.protocol === 'file:') {
         alert('NOAA AIS import requires the seaLens API.\n\nStart it from the project folder:\npython3 start.py\n\nThen open:\nhttp://localhost:8000/c2\n\nTip: Use a local server (not file://) to avoid CORS/Failed to fetch errors.');
         return;
@@ -8191,11 +8264,12 @@
               </div>
               <div class="px-5 py-4 space-y-2 max-h-[400px] overflow-y-auto text-xs">
                 ${runs.length ? runs.map((run, i) => `
-                  <div class="p-2 border rounded-xl">
+                  <div class="p-2 border rounded-xl space-y-1">
                     <div class="font-bold">${run.run_id} - ${run.name}</div>
                     <div class="font-mono text-[9px] text-neutral-500">${run.saved_at}</div>
                     <div class="font-mono text-[9px]">bbox: [${run.bbox}] | scenario: ${run.scenario_id}</div>
                     <div class="font-mono text-[9px]">cached: ${(run.cached_files||[]).join(', ')}</div>
+                    <button class="px-2 py-0.5 rounded bg-neutral-900 text-white text-[9px]" onclick='(function(){ localStorage.setItem("seaLens_replay", JSON.stringify(${JSON.stringify(run)})); alert("Run loaded for replay. Reloading scenario..."); location.reload(); })()'>Load/Replay</button>
                   </div>
                 `).join('') : '<div class="text-neutral-500">No runs saved yet.</div>'}
               </div>
