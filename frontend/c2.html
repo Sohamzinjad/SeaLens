@@ -298,6 +298,48 @@
 
 
     /* ──────────────────────────────────────────
+       TOAST NOTIFICATIONS
+    ────────────────────────────────────────── */
+    #toastContainer {
+      position: fixed;
+      top: 70px;
+      right: 16px;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .toast {
+      pointer-events: auto;
+      min-width: 280px;
+      max-width: 380px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      font-family: 'Inter Tight', sans-serif;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+      backdrop-filter: blur(16px) saturate(180%);
+      -webkit-backdrop-filter: blur(16px) saturate(180%);
+      border: 1px solid rgba(255,255,255,0.8);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      animation: toastSlideIn 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+      transition: all 0.3s ease;
+    }
+    .toast.success { background: linear-gradient(135deg, rgba(16,185,129,0.95), rgba(5,150,105,0.95)); color: white; }
+    .toast.error { background: linear-gradient(135deg, rgba(239,68,68,0.95), rgba(220,38,38,0.95)); color: white; }
+    .toast.warning { background: linear-gradient(135deg, rgba(245,158,11,0.95), rgba(217,119,6,0.95)); color: white; }
+    .toast.info { background: linear-gradient(135deg, rgba(59,130,246,0.95), rgba(37,99,235,0.95)); color: white; }
+    .toast.hiding { opacity: 0; transform: translateX(100%); }
+    @keyframes toastSlideIn {
+      from { opacity: 0; transform: translateX(100%); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    /* ──────────────────────────────────────────
        SCROLLBAR
     ────────────────────────────────────────── */
     .custom-scrollbar::-webkit-scrollbar { width: 3px; height: 3px; }
@@ -582,6 +624,7 @@
   </style>
 </head>
 <body class="h-screen w-screen flex flex-col font-sans select-none antialiased bg-[#F8F9FA]">
+  <div id="toastContainer"></div>
 
   <!-- TOP COMMAND CENTER NAVBAR (56px) -->
   <header class="h-14 bg-white/80 backdrop-blur-2xl border-b border-black/6 px-6 flex items-center justify-between shrink-0 z-40 relative" style="box-shadow: 0 1px 0 rgba(255,255,255,0.9) inset, 0 2px 12px rgba(0,0,0,0.05);">
@@ -619,6 +662,10 @@
       <button id="btnReproRuns" class="flex items-center space-x-1.5 px-2.5 py-0.5 bg-white text-neutral-700 border border-black/10 rounded-full text-[11px] font-bold hover:bg-neutral-50">
         <i data-lucide="clock" class="w-3 h-3"></i>
         <span>Runs</span>
+      </button>
+      <button id="btnResetDemo" class="flex items-center space-x-1.5 px-2.5 py-0.5 bg-white text-neutral-700 border border-black/10 rounded-full text-[11px] font-bold hover:bg-neutral-50">
+        <i data-lucide="refresh-cw" class="w-3 h-3"></i>
+        <span>Reset Demo</span>
       </button>
 
       <!-- Live Status Pill -->
@@ -1557,12 +1604,19 @@
       applyOceanStyling();
       setupMapLayers();
       try {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('demo') === '1') {
+          setTimeout(() => { if (typeof createDemoModal === 'function') createDemoModal(); }, 800);
+        }
+        if (params.get('case') === 'wakashio') {
+          const sel = document.getElementById('scenarioSelect'); if (sel) { sel.value = 'scenario_wakashio_validation'; sel.dispatchEvent(new Event('change')); }
+        }
         const replay = localStorage.getItem('seaLens_replay');
         if (replay) {
           const r = JSON.parse(replay);
           if (r.scenario_id) { const sel = document.getElementById('scenarioSelect'); if (sel) { sel.value = r.scenario_id; sel.dispatchEvent(new Event('change')); } }
           localStorage.removeItem('seaLens_replay');
-        } else {
+        } else if (params.get('case') !== 'wakashio' && params.get('demo') !== '1') {
           loadScenario('scenario_wakashio_validation');
           updateStatusBanner('scenario_wakashio_validation');
         }
@@ -3016,6 +3070,20 @@
     // ────────────────────────────────────────────────────────────
     const btnGeoTIFF = document.getElementById('btnGeoTIFF');
 
+
+    function showToast(message, type = 'info', duration = 3000) {
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.innerHTML = `<span>${message}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.classList.add('hiding');
+        setTimeout(() => toast.remove(), 300);
+      }, duration);
+    }
+
     async function captureRunEvent(action, details = {}) {
       try {
         if (!currentRunId) {
@@ -3075,7 +3143,7 @@
         setSourceBadge('srcSentinel', 'real', 'real (Sentinel-1)');
       } catch (error) {
         if (radarHud) radarHud.classList.add('hidden');
-        alert(`Real public-data analysis could not complete: ${error.message || error}`);
+        showToast('Real SAR analysis failed', 'error'); alert(`Real public-data analysis could not complete: ${error.message || error}`);
       } finally {
         btnRealData.innerHTML = original;
         btnRealData.disabled = false;
@@ -4426,6 +4494,48 @@
 
 
     /* ──────────────────────────────────────────
+       TOAST NOTIFICATIONS
+    ────────────────────────────────────────── */
+    #toastContainer {
+      position: fixed;
+      top: 70px;
+      right: 16px;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .toast {
+      pointer-events: auto;
+      min-width: 280px;
+      max-width: 380px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      font-family: 'Inter Tight', sans-serif;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+      backdrop-filter: blur(16px) saturate(180%);
+      -webkit-backdrop-filter: blur(16px) saturate(180%);
+      border: 1px solid rgba(255,255,255,0.8);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      animation: toastSlideIn 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+      transition: all 0.3s ease;
+    }
+    .toast.success { background: linear-gradient(135deg, rgba(16,185,129,0.95), rgba(5,150,105,0.95)); color: white; }
+    .toast.error { background: linear-gradient(135deg, rgba(239,68,68,0.95), rgba(220,38,38,0.95)); color: white; }
+    .toast.warning { background: linear-gradient(135deg, rgba(245,158,11,0.95), rgba(217,119,6,0.95)); color: white; }
+    .toast.info { background: linear-gradient(135deg, rgba(59,130,246,0.95), rgba(37,99,235,0.95)); color: white; }
+    .toast.hiding { opacity: 0; transform: translateX(100%); }
+    @keyframes toastSlideIn {
+      from { opacity: 0; transform: translateX(100%); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    /* ──────────────────────────────────────────
        SCROLLBAR
     ────────────────────────────────────────── */
     .custom-scrollbar::-webkit-scrollbar { width: 3px; height: 3px; }
@@ -5680,12 +5790,19 @@
       applyOceanStyling();
       setupMapLayers();
       try {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('demo') === '1') {
+          setTimeout(() => { if (typeof createDemoModal === 'function') createDemoModal(); }, 800);
+        }
+        if (params.get('case') === 'wakashio') {
+          const sel = document.getElementById('scenarioSelect'); if (sel) { sel.value = 'scenario_wakashio_validation'; sel.dispatchEvent(new Event('change')); }
+        }
         const replay = localStorage.getItem('seaLens_replay');
         if (replay) {
           const r = JSON.parse(replay);
           if (r.scenario_id) { const sel = document.getElementById('scenarioSelect'); if (sel) { sel.value = r.scenario_id; sel.dispatchEvent(new Event('change')); } }
           localStorage.removeItem('seaLens_replay');
-        } else {
+        } else if (params.get('case') !== 'wakashio' && params.get('demo') !== '1') {
           loadScenario('scenario_wakashio_validation');
           updateStatusBanner('scenario_wakashio_validation');
         }
@@ -7187,7 +7304,7 @@
         setSourceBadge('srcSentinel', 'real', 'real (Sentinel-1)');
       } catch (error) {
         if (radarHud) radarHud.classList.add('hidden');
-        alert(`Real public-data analysis could not complete: ${error.message || error}`);
+        showToast('Real SAR analysis failed', 'error'); alert(`Real public-data analysis could not complete: ${error.message || error}`);
       } finally {
         btnRealData.innerHTML = original;
         btnRealData.disabled = false;
@@ -8279,6 +8396,21 @@
           if (typeof lucide !== 'undefined') lucide.createIcons();
           modal.querySelector('#runsClose').onclick = () => modal.remove();
         } catch(e) { alert('Failed to load runs: ' + e.message); }
+      });
+    }
+
+
+    // Reset Demo button
+    const btnResetDemo = document.getElementById('btnResetDemo');
+    if (btnResetDemo) {
+      btnResetDemo.addEventListener('click', () => {
+        try {
+          localStorage.removeItem('seaLens_replay');
+          currentRunId = null;
+          currentRunManifest = null;
+        } catch(e) {}
+        if (typeof showToast === 'function') showToast('Demo reset - reloading...', 'info');
+        setTimeout(() => { window.location.href = '/c2'; }, 500);
       });
     }
 
