@@ -730,6 +730,10 @@
           <i data-lucide="scan" class="w-3.5 h-3.5"></i>
           <span>Run GeoTIFF + CFAR Pipeline</span>
         </button>
+        <button id="btnRealData" class="btn-premium w-full py-2.5 text-white rounded-2xl text-xs font-bold flex items-center justify-center space-x-2" style="background: linear-gradient(135deg, #047857, #059669); box-shadow: 0 4px 16px rgba(5,150,105,0.26), inset 0 1px 0 rgba(255,255,255,0.12);">
+          <i data-lucide="satellite" class="w-3.5 h-3.5"></i>
+          <span>Run Public Sentinel-1 RTC Case</span>
+        </button>
       </div>
 
     </aside>
@@ -2735,6 +2739,7 @@
     // 2. BUTTON ACTION: RUN GEOTIFF + CFAR PIPELINE
     // ────────────────────────────────────────────────────────────
     const btnGeoTIFF = document.getElementById('btnGeoTIFF');
+    const btnRealData = document.getElementById('btnRealData');
     const radarHud = document.getElementById('radarHudOverlay');
     const radarTitle = document.getElementById('radarHudTitle');
     const radarSubtitle = document.getElementById('radarHudSubtitle');
@@ -2743,6 +2748,47 @@
     const btnFocusGeoTIFFTargets = document.getElementById('btnFocusGeoTIFFTargets');
     let lastGeoTIFFResult = null;
     let lastGeoTIFFCenter = [103.85, 1.24];
+
+    // This path uses a real, public analysis-ready Sentinel-1 RTC COG. It has
+    // no synthetic fallback: failure remains visible rather than manufacturing a result.
+    if (btnRealData) btnRealData.addEventListener('click', async () => {
+      const original = btnRealData.innerHTML;
+      btnRealData.innerHTML = '<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>Fetching public SAR case…</span>';
+      btnRealData.disabled = true;
+      lucide.createIcons();
+      try {
+        const manifest = await fetch('/api/real-data/default-case').then(r => r.ok ? r.json() : Promise.reject(new Error('Could not load public case')));
+        if (radarHud) radarHud.classList.remove('hidden');
+        if (radarTitle) radarTitle.textContent = 'FETCHING PUBLIC SENTINEL-1 RTC CROP…';
+        if (radarSubtitle) radarSubtitle.textContent = 'Texas Gulf Coast · real satellite input · no synthetic fallback';
+        const crop = await fetch('/api/real-data/sentinel/crop', {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({asset_url: manifest.recommended_asset, bbox: manifest.case.bbox, max_pixels: 1024})
+        }).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(new Error(e.detail || 'Crop request failed'))));
+        if (radarTitle) radarTitle.textContent = 'RUNNING U-NET + CA-CFAR ON REAL SAR…';
+        const filename = crop.output_path.split('/').pop();
+        const result = await fetch('/api/real-data/analyze-crop', {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({filename})
+        }).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(new Error(e.detail || 'Analysis failed'))));
+        const [west, south, east, north] = manifest.case.bbox;
+        lastGeoTIFFCenter = [(west + east) / 2, (south + north) / 2];
+        if (map.getSource('sar-geotiff-slicks-src')) {
+          map.getSource('sar-geotiff-slicks-src').setData({type: 'FeatureCollection', features: (result.slick_polygons || []).map((geometry, i) => ({type: 'Feature', geometry, properties: {id: `REAL-SAR-${i + 1}`}}))});
+        }
+        if (radarTitle) radarTitle.textContent = 'REAL SENTINEL-1 ANALYSIS COMPLETE';
+        if (radarSubtitle) radarSubtitle.textContent = `${result.slick_polygons_detected_count} candidate slick regions · ${result.radar_ships_detected_count} radar contacts · investigative leads only`;
+        map.flyTo({center: lastGeoTIFFCenter, zoom: 9.4, pitch: 35, bearing: -12, duration: 1200});
+        setTimeout(() => radarHud && radarHud.classList.add('hidden'), 5000);
+      } catch (error) {
+        if (radarHud) radarHud.classList.add('hidden');
+        alert(`Real public-data analysis could not complete: ${error.message || error}`);
+      } finally {
+        btnRealData.innerHTML = original;
+        btnRealData.disabled = false;
+        lucide.createIcons();
+      }
+    });
 
     if (btnCloseGeoTIFFModal) {
       btnCloseGeoTIFFModal.addEventListener('click', () => {
