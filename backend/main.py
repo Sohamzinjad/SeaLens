@@ -842,3 +842,18 @@ def get_run_manifest(run_id: str):
         raise HTTPException(status_code=404, detail="Run not found")
     with open(path) as f:
         return json.load(f)
+
+
+@app.get("/api/version")
+def get_version():
+    import subprocess
+    try:
+        commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=os.path.dirname(os.path.dirname(__file__))).decode().strip()[:8]
+    except Exception:
+        commit = "unknown"
+    return {
+        "version": "1.0.0",
+        "git_commit": commit,
+        "build_timestamp": datetime.utcnow().isoformat() + "Z",
+        "app": "seaLens"
+    }
