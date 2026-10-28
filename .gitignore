@@ -47,3 +47,6 @@ Thumbs.db
 *.pem
 *.key
 *.crt
+cache/
+audit_logs/
+data_samples/metocean_cache/

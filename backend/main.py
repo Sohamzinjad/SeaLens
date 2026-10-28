@@ -34,6 +34,9 @@ from backend.services.real_data_service import (
     public_case_manifest,
     search_sentinel_scenes,
 )
+from backend.audit_logger import compute_file_hash, log_audit_event
+from backend.cache_manager import get_cache_key, get_cached, save_to_cache
+from backend.security_utils import safe_path_join, validate_bbox, validate_date, validate_filename, validate_source_url
 from ml_engine.sar_detector import SAROilSpillDetector
 from ml_engine.geotiff_processor import GeoTIFFProcessor
 from ml_engine.cfar_ship_detector import CACFARShipDetector
@@ -61,11 +64,13 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Enable CORS for local/remote development
+cors_origins = [origin.strip() for origin in os.getenv(
+    "SEALENS_CORS_ORIGINS", "http://localhost:8000,http://127.0.0.1:8000"
+).split(",") if origin.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=cors_origins,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -84,6 +89,24 @@ weathering_engine = OilWeatheringEngine()
 landfall_predictor = CoastalLandfallPredictor()
 backtrack_grid_engine = DynamicOceanGridEngine()
 real_metocean_grid_engine = RealMetOceanGridEngine()
+REAL_DATA_DIR = "data_samples/real_data"
+
+
+def _audit_request(action: str, http_request: Request, *, parameters: Dict[str, Any], source_url: str | None = None, filepath: str | None = None) -> None:
+    """Record reproducibility metadata without logging request bodies or credentials."""
+    log_audit_event(action, {
+        "source_url": source_url,
+        "file_hash": compute_file_hash(filepath) if filepath and os.path.isfile(filepath) else None,
+        "parameters": parameters,
+        "ip": http_request.client.host if http_request.client else None,
+    })
+
+
+def _validate_time_range(start: str, end: str, label: str) -> None:
+    validate_date(start)
+    validate_date(end)
+    if datetime.fromisoformat(end.replace("Z", "+00:00")) <= datetime.fromisoformat(start.replace("Z", "+00:00")):
+        raise HTTPException(status_code=400, detail=f"{label} end must be after start")
 
 
 class SentinelSearchRequest(BaseModel):
@@ -163,22 +186,28 @@ def metocean_status():
 
 
 @app.post("/api/real-data/metocean/prepare")
-def prepare_real_metocean(request: MetOceanPrepareRequest):
+def prepare_real_metocean(request: MetOceanPrepareRequest, http_request: Request):
     """Cache small GFS/CMEMS fields for an incident; never fabricate a provider result."""
     try:
-        return real_metocean_grid_engine.prepare_incident(**request.model_dump())
+        validate_bbox(request.bbox)
+        validate_date(request.detection_timestamp)
+        result = real_metocean_grid_engine.prepare_incident(**request.model_dump())
+        _audit_request("metocean_prepare", http_request, parameters=request.model_dump())
+        return result
     except MetOceanError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.post("/api/real-data/metocean/backtrack")
-def backtrack_with_real_metocean(request: RealMetOceanBacktrackRequest):
+def backtrack_with_real_metocean(request: RealMetOceanBacktrackRequest, http_request: Request):
     """Run the existing 15-minute backtrack against cached real fields when available.
 
     The response carries source provenance per vector.  ``modelled_fallback`` is
     true whenever GFS wind or Copernicus currents could not cover a step.
     """
     try:
+        validate_bbox(request.bbox)
+        validate_date(request.detection_timestamp)
         prepared = real_metocean_grid_engine.prepare_incident(
             incident_id=request.incident_id,
             bbox=request.bbox,
@@ -215,7 +244,7 @@ def backtrack_with_real_metocean(request: RealMetOceanBacktrackRequest):
             "current_source": vector_at_detection["current_source"],
             "modelled_fallback": vector_at_detection["modelled_fallback"],
         }
-        return {
+        result = {
             "derived_origin": {"lat": origin_lat, "lng": origin_lng},
             "origin_cone": origin_cone,
             "step_minutes": 15,
@@ -226,6 +255,8 @@ def backtrack_with_real_metocean(request: RealMetOceanBacktrackRequest):
                 "Check source provenance: a modelled fallback is not real measured/grid data."
             ),
         }
+        _audit_request("metocean_backtrack", http_request, parameters=request.model_dump())
+        return result
     except (MetOceanError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -237,35 +268,49 @@ def get_real_data_default_case():
 
 
 @app.post("/api/real-data/sentinel/search")
-def search_real_sentinel(request: SentinelSearchRequest):
+def search_real_sentinel(request: SentinelSearchRequest, http_request: Request):
     """Discover public Sentinel-1 GRD scenes for a WGS84 area/time range."""
     try:
+        validate_bbox(request.bbox)
+        _validate_time_range(request.start, request.end, "Sentinel search")
+        parameters = request.model_dump()
+        cache_key = get_cache_key(parameters)
+        cached = get_cached(cache_key, "sentinel_search")
+        if cached:
+            _audit_request("sentinel_search_cache_hit", http_request, parameters=parameters)
+            return cached
         scenes = search_sentinel_scenes(request.bbox, request.start, request.end, request.limit)
-        return {
+        result = {
             "source": "Element 84 AWS Open Data Sentinel-1 STAC",
-            "query": request.model_dump(),
+            "query": parameters,
             "scenes": scenes,
             "attribution": "Contains modified Copernicus Sentinel data when a selected asset is downloaded or processed.",
         }
+        save_to_cache(cache_key, result, "sentinel_search")
+        _audit_request("sentinel_search", http_request, parameters=parameters, source_url="https://earth-search.aws.element84.com/v1/search")
+        return result
     except RealDataError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.post("/api/real-data/sentinel/crop")
-def crop_real_sentinel(request: SentinelCropRequest):
+def crop_real_sentinel(request: SentinelCropRequest, http_request: Request):
     """Create a small local GeoTIFF crop via public, anonymous S3 range reads."""
     try:
-        safe_scene_name = os.path.basename(request.asset_url).replace(".tiff", "")
-        output_path = os.path.join("data_samples", "real_data", f"{safe_scene_name}_crop.tif")
+        validate_bbox(request.bbox)
+        validate_source_url(request.asset_url)
+        safe_scene_name = validate_filename(os.path.basename(request.asset_url)).replace(".tiff", "").replace(".tif", "")
+        output_path = str(safe_path_join(REAL_DATA_DIR, f"{safe_scene_name}_crop.tif"))
         result = download_sentinel_crop(request.asset_url, request.bbox, output_path, request.max_pixels)
         result["warning"] = "Real satellite data is investigative input only; validate processing and corroborate any finding before operational interpretation."
+        _audit_request("sentinel_crop", http_request, parameters=request.model_dump(), source_url=request.asset_url, filepath=output_path)
         return result
     except RealDataError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.post("/api/real-data/noaa-ais/import")
-def import_noaa_ais(request: NOAAAISImportRequest):
+def import_noaa_ais(request: NOAAAISImportRequest, http_request: Request):
     """Cache only AIS positions inside the requested local bounding box."""
     if not request.allow_large_download:
         raise HTTPException(
@@ -273,8 +318,10 @@ def import_noaa_ais(request: NOAAAISImportRequest):
             detail="NOAA daily AIS archives are large. Set allow_large_download=true to begin the public download.",
         )
     try:
-        output_path = os.path.join("data_samples", "real_data", f"noaa_ais_{request.day}_subset.csv")
-        return download_noaa_ais_subset(
+        validate_bbox(request.bbox)
+        _validate_time_range(request.start_time, request.end_time, "AIS import")
+        output_path = str(safe_path_join(REAL_DATA_DIR, f"noaa_ais_{validate_date(request.day)}_subset.csv"))
+        result = download_noaa_ais_subset(
             request.day,
             request.bbox,
             output_path,
@@ -282,21 +329,23 @@ def import_noaa_ais(request: NOAAAISImportRequest):
             request.start_time,
             request.end_time,
         )
+        _audit_request("noaa_ais_import", http_request, parameters=request.model_dump(), source_url=result.get("source_url"), filepath=output_path)
+        return result
     except RealDataError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.post("/api/real-data/analyze-crop")
-def analyze_real_sentinel_crop(request: RealCropAnalysisRequest):
+def analyze_real_sentinel_crop(request: RealCropAnalysisRequest, http_request: Request):
     """Run the existing Lee-filter, U-Net and CA-CFAR path on a real cached crop.
 
     Unlike the synthetic endpoint, this path never invents a fallback slick or
     ship list: a zero detection is returned as a zero detection.
     """
-    filename = os.path.basename(request.filename)
-    if filename != request.filename or not filename.endswith(".tif"):
+    filename = validate_filename(request.filename)
+    if not filename.endswith(".tif"):
         raise HTTPException(status_code=400, detail="filename must name a cached .tif crop")
-    crop_path = os.path.join("data_samples", "real_data", filename)
+    crop_path = str(safe_path_join(REAL_DATA_DIR, filename))
     if not os.path.isfile(crop_path):
         raise HTTPException(status_code=404, detail="Crop not found. Run /api/real-data/sentinel/crop first.")
     try:
@@ -307,7 +356,7 @@ def analyze_real_sentinel_crop(request: RealCropAnalysisRequest):
             mask, _ = unet_model.predict_large_raster(filtered, tile_size=256, threshold=request.threshold)
             polygons = geotiff_processor.mask_to_geojson_polygons(mask, transform)
         radar_ships = cfar_detector.detect_ships(raster, transform)
-        return {
+        result = {
             "status": "success",
             "input": "real_public_sentinel_rtc_crop",
             "filename": filename,
@@ -320,21 +369,23 @@ def analyze_real_sentinel_crop(request: RealCropAnalysisRequest):
             "notice": "Automated detections are probabilistic investigative leads, not proof of an oil spill or vessel responsibility.",
             "attribution": "Contains modified Copernicus Sentinel data (2020).",
         }
+        _audit_request("sentinel_crop_analysis", http_request, parameters=request.model_dump(), filepath=crop_path)
+        return result
     except Exception as exc:
         raise HTTPException(status_code=422, detail=f"Real SAR analysis failed: {exc}") from exc
 
 
 @app.post("/api/real-data/noaa-ais/correlate")
-def correlate_noaa_ais(request: NOAAAISCorrelationRequest):
+def correlate_noaa_ais(request: NOAAAISCorrelationRequest, http_request: Request):
     """Run the existing attribution engine against a local NOAA AIS subset.
 
     The origin is analyst-supplied (for example, a reviewed backtrack result).
     Scores rank follow-up candidates and never establish vessel responsibility.
     """
-    filename = os.path.basename(request.filename)
-    if filename != request.filename or not filename.endswith(".csv"):
+    filename = validate_filename(request.filename)
+    if not filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="filename must name a cached NOAA .csv subset")
-    csv_path = os.path.join("data_samples", "real_data", filename)
+    csv_path = str(safe_path_join(REAL_DATA_DIR, filename))
     try:
         tracks = load_noaa_ais_tracks(csv_path, max_vessels=request.max_vessels)
         # The correlation engine requires slick geometry only for its orientation.
@@ -349,13 +400,15 @@ def correlate_noaa_ais(request: NOAAAISCorrelationRequest):
         matches = correlation_engine.correlate_incident(
             correlation_slick, request.origin_lat, request.origin_lng, tracks
         )
-        return {
+        result = {
             "source": "NOAA/BOEM MarineCadastre local AIS subset",
             "vessels_loaded": len(tracks),
             "origin": {"lat": request.origin_lat, "lng": request.origin_lng, "analyst_supplied": True},
             "matches": [match.model_dump() for match in matches],
             "notice": "Composite scores are probabilistic investigative prioritization only. Validate source data and corroborate before any enforcement decision.",
         }
+        _audit_request("noaa_ais_correlation", http_request, parameters=request.model_dump(), filepath=csv_path)
+        return result
     except RealDataError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

@@ -3,6 +3,7 @@ Security utilities for input validation and safe operations.
 """
 import os
 import re
+from urllib.parse import urlparse
 from pathlib import Path
 from typing import List, Optional
 from fastapi import HTTPException
@@ -38,8 +39,6 @@ def validate_filename(filename: str) -> str:
     """Prevent path traversal in filenames"""
     if not filename:
         raise HTTPException(status_code=400, detail="Filename required")
-    # Remove any path components
-    filename = os.path.basename(filename)
     # Check for path traversal attempts
     if '..' in filename or '/' in filename or '\\' in filename:
         raise HTTPException(status_code=400, detail="Invalid filename")
@@ -50,17 +49,17 @@ def validate_filename(filename: str) -> str:
 
 
 def validate_source_url(url: str) -> str:
-    """Validate and restrict source URLs"""
-    allowed_domains = [
-        'sentinel-s1-rtc-indigo.s3.us-west-2.amazonaws.com',
-        'coast.noaa.gov',
-        'noaa.gov',
-        'earthdata.nasa.gov',
-        'data.nasa.gov'
-    ]
-    # For local demo, be permissive but check basic format
-    if not url.startswith('http://') and not url.startswith('https://'):
-        raise HTTPException(status_code=400, detail="Invalid URL")
+    """Allow only HTTPS assets hosted by the public sources seaLens supports."""
+    parsed = urlparse(url)
+    allowed_domains = {
+        "sentinel-s1-rtc-indigo.s3.us-west-2.amazonaws.com",
+        "earth-search.aws.element84.com",
+        "noaaocm.blob.core.windows.net",
+    }
+    if parsed.scheme != "https" or parsed.username or parsed.password or parsed.port:
+        raise HTTPException(status_code=400, detail="Source URL must be a plain HTTPS URL")
+    if parsed.hostname not in allowed_domains:
+        raise HTTPException(status_code=400, detail="Source URL host is not approved for this endpoint")
     return url
 
 
