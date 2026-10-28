@@ -615,6 +615,11 @@
         <i data-lucide="download" class="w-3.5 h-3.5 text-blue-600"></i>
         <span>Export GIS</span>
       </button>
+      <!-- Runs / Reproducibility -->
+      <button id="btnReproRuns" class="flex items-center space-x-1.5 px-2.5 py-0.5 bg-white text-neutral-700 border border-black/10 rounded-full text-[11px] font-bold hover:bg-neutral-50">
+        <i data-lucide="clock" class="w-3 h-3"></i>
+        <span>Runs</span>
+      </button>
 
       <!-- Live Status Pill -->
       <div class="flex items-center space-x-1.5 px-2.5 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-200/80 rounded-full text-[11px] font-bold">
@@ -8167,6 +8172,42 @@
         alert('Offline fallback active.\nUsing packaged assets from data_samples/real_data/offline_demo/ if present.\nDemo scenarios and cached data will be used when network is unavailable.');
       });
     }
+
+    // Reproducibility runs UI
+    const btnReproRuns = document.getElementById('btnReproRuns');
+    if (btnReproRuns) {
+      btnReproRuns.addEventListener('click', async () => {
+        try {
+          const r = await fetch('/api/runs/list');
+          const data = await r.json();
+          const runs = data.runs || [];
+          const modal = document.createElement('div');
+          modal.className = 'fixed inset-0 bg-black/40 backdrop-blur-sm z-[70] flex items-center justify-center p-4';
+          modal.innerHTML = `
+            <div class="w-full max-w-lg rounded-3xl bg-white shadow-2xl overflow-hidden">
+              <div class="px-5 py-4 border-b flex items-center justify-between">
+                <div><div class="text-sm font-extrabold">Saved Runs (reproducible)</div><div class="text-[10px] font-mono text-neutral-500">bbox/time/source URLs/params/cached files/timestamps</div></div>
+                <button id="runsClose" class="p-1 hover:bg-neutral-100 rounded-lg"><i data-lucide="x" class="w-4 h-4"></i></button>
+              </div>
+              <div class="px-5 py-4 space-y-2 max-h-[400px] overflow-y-auto text-xs">
+                ${runs.length ? runs.map((run, i) => `
+                  <div class="p-2 border rounded-xl">
+                    <div class="font-bold">${run.run_id} - ${run.name}</div>
+                    <div class="font-mono text-[9px] text-neutral-500">${run.saved_at}</div>
+                    <div class="font-mono text-[9px]">bbox: [${run.bbox}] | scenario: ${run.scenario_id}</div>
+                    <div class="font-mono text-[9px]">cached: ${(run.cached_files||[]).join(', ')}</div>
+                  </div>
+                `).join('') : '<div class="text-neutral-500">No runs saved yet.</div>'}
+              </div>
+            </div>
+          `;
+          document.body.appendChild(modal);
+          if (typeof lucide !== 'undefined') lucide.createIcons();
+          modal.querySelector('#runsClose').onclick = () => modal.remove();
+        } catch(e) { alert('Failed to load runs: ' + e.message); }
+      });
+    }
+
 
   </script>
 </body>
