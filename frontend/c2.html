@@ -625,6 +625,7 @@
 </head>
 <body class="h-screen w-screen flex flex-col font-sans select-none antialiased bg-[#F8F9FA]">
   <div id="toastContainer"></div>
+  <div id="investigativeWatermark" class="fixed bottom-2 left-1/2 -translate-x-1/2 z-[5] pointer-events-none text-[9px] font-mono font-bold tracking-[0.2em] uppercase opacity-40" style="color: #dc2626;">INVESTIGATIVE LEADS ONLY • NOT PROOF OF RESPONSIBILITY</div>
 
   <!-- TOP COMMAND CENTER NAVBAR (56px) -->
   <header class="h-14 bg-white/80 backdrop-blur-2xl border-b border-black/6 px-6 flex items-center justify-between shrink-0 z-40 relative" style="box-shadow: 0 1px 0 rgba(255,255,255,0.9) inset, 0 2px 12px rgba(0,0,0,0.05);">
@@ -662,6 +663,10 @@
       <button id="btnReproRuns" class="flex items-center space-x-1.5 px-2.5 py-0.5 bg-white text-neutral-700 border border-black/10 rounded-full text-[11px] font-bold hover:bg-neutral-50">
         <i data-lucide="clock" class="w-3 h-3"></i>
         <span>Runs</span>
+      </button>
+      <button id="btnModelCard" class="flex items-center space-x-1.5 px-2.5 py-0.5 bg-white text-neutral-700 border border-black/10 rounded-full text-[11px] font-bold hover:bg-neutral-50">
+        <i data-lucide="file-text" class="w-3 h-3"></i>
+        <span>Model Card</span>
       </button>
       <button id="btnResetDemo" class="flex items-center space-x-1.5 px-2.5 py-0.5 bg-white text-neutral-700 border border-black/10 rounded-full text-[11px] font-bold hover:bg-neutral-50">
         <i data-lucide="refresh-cw" class="w-3 h-3"></i>
@@ -8411,6 +8416,37 @@
         } catch(e) {}
         if (typeof showToast === 'function') showToast('Demo reset - reloading...', 'info');
         setTimeout(() => { window.location.href = '/c2'; }, 500);
+      });
+    }
+
+
+    // Model Card modal
+    const btnModelCard = document.getElementById('btnModelCard');
+    if (btnModelCard) {
+      btnModelCard.addEventListener('click', async () => {
+        try {
+          const r = await fetch('/model_card.json');
+          const card = await r.json();
+          const modal = document.createElement('div');
+          modal.className = 'fixed inset-0 bg-black/40 backdrop-blur-sm z-[80] flex items-center justify-center p-4';
+          modal.innerHTML = `<div class="w-full max-w-2xl rounded-3xl bg-white shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
+            <div class="px-5 py-4 border-b flex items-center justify-between sticky top-0 bg-white">
+              <div><div class="text-sm font-extrabold">Model Card</div><div class="text-[10px] font-mono text-neutral-500">${card.model_name} v${card.version}</div></div>
+              <button id="mcClose" class="p-1 hover:bg-neutral-100 rounded-lg"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <div class="px-5 py-4 space-y-3 text-xs">
+              <div><b>Task:</b> ${card.task}</div>
+              <div><b>Intended Use:</b> ${card.intended_use}</div>
+              <div><b>Limitations:</b><ul class="list-disc ml-4">${(card.limitations||[]).map(l=>'<li>'+l+'</li>').join('')}</ul></div>
+              <div><b>Ethical:</b> ${card.ethical_considerations}</div>
+              <div><b>Calibrated:</b> ${card.calibration.calibrated} - ${card.calibration.note}</div>
+              <div><b>Metrics:</b> ${card.metrics.status}</div>
+            </div>
+          </div>`;
+          document.body.appendChild(modal);
+          if (typeof lucide !== 'undefined') lucide.createIcons();
+          modal.querySelector('#mcClose').onclick = () => modal.remove();
+        } catch(e) { alert('Failed to load model card'); }
       });
     }
 
