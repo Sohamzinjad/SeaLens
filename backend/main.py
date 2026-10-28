@@ -542,7 +542,30 @@ def get_dossier_markdown(scenario_id: str):
     if scenario_id not in SCENARIOS:
         raise HTTPException(status_code=404, detail=f"Scenario '{scenario_id}' not found")
     scenario = SCENARIOS[scenario_id]
-    md_content = generate_markdown_dossier(scenario)
+    extra_meta = {
+        "data_sources": [
+            f"SAR: {scenario.sar_image.satellite} ({scenario.sar_image.mode}, {scenario.sar_image.polarization})",
+            "AIS: demo/simulated vessel tracks (unless NOAA AIS imported via real-data API)",
+            "Met-Ocean: modelled/demo by default; GFS/Copernicus used when Real Data Mode is executed",
+            "Environment: demo environmental parameters",
+        ],
+        "timestamps": {
+            "generated_at_utc": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "sar_acquisition": scenario.sar_image.acquisition_time,
+            "scenario_id": scenario_id,
+        },
+        "cache_status": {
+            "status": "demo-capable with real-data hooks",
+            "note": "Real imports cached under data_samples/real_data/ when used",
+        },
+        "uncertainty_warnings": [
+            "Detections and prioritization are probabilistic, not proof of responsibility.",
+            "This dossier is investigative support only; independent corroboration required before enforcement/legal action.",
+            "Drift origin shown as cone/ellipse with growing uncertainty over time.",
+            "Historical validation cases (e.g., Wakashio) use reasonable demo estimates, not guaranteed date-specific met-ocean reanalysis.",
+        ],
+    }
+    md_content = generate_markdown_dossier(scenario, extra_metadata=extra_meta)
     return PlainTextResponse(content=md_content, media_type="text/markdown")
 
 @app.get("/api/dossier/{scenario_id}/download")
@@ -550,7 +573,24 @@ def download_dossier_markdown(scenario_id: str):
     if scenario_id not in SCENARIOS:
         raise HTTPException(status_code=404, detail=f"Scenario '{scenario_id}' not found")
     scenario = SCENARIOS[scenario_id]
-    md_content = generate_markdown_dossier(scenario)
+    extra_meta = {
+        "data_sources": [
+            f"SAR: {scenario.sar_image.satellite} ({scenario.sar_image.mode}, {scenario.sar_image.polarization})",
+            "AIS: demo/simulated unless NOAA AIS imported",
+            "Met-Ocean: modelled/demo or GFS/Copernicus when real-data mode used",
+        ],
+        "timestamps": {
+            "generated_at_utc": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "sar_acquisition": scenario.sar_image.acquisition_time,
+            "scenario_id": scenario_id,
+        },
+        "cache_status": {"status": "demo-capable"},
+        "uncertainty_warnings": [
+            "Probabilistic findings only; not proof of responsibility.",
+            "Independent corroboration required.",
+        ],
+    }
+    md_content = generate_markdown_dossier(scenario, extra_metadata=extra_meta)
     headers = {
         "Content-Disposition": f"attachment; filename=seaLens_Forensic_Dossier_{scenario_id}.md"
     }

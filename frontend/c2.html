@@ -345,6 +345,98 @@
     }
 
     /* ──────────────────────────────────────────
+       DATA SOURCE BADGES
+    ────────────────────────────────────────── */
+    .source-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 9px;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      border: 1px solid rgba(0,0,0,0.08);
+      background: rgba(255,255,255,0.8);
+      color: rgba(0,0,0,0.7);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    }
+    .source-badge.real {
+      background: linear-gradient(135deg, rgba(16,185,129,0.12), rgba(5,150,105,0.08));
+      color: #065f46;
+      border-color: rgba(16,185,129,0.4);
+    }
+    .source-badge.fallback {
+      background: linear-gradient(135deg, rgba(245,158,11,0.12), rgba(217,119,6,0.08));
+      color: #92400e;
+      border-color: rgba(245,158,11,0.4);
+    }
+    .source-badge.demo {
+      background: linear-gradient(135deg, rgba(156,163,175,0.14), rgba(107,114,128,0.08));
+      color: #374151;
+      border-color: rgba(156,163,175,0.4);
+    }
+    .source-badge.modelled {
+      background: linear-gradient(135deg, rgba(59,130,246,0.12), rgba(37,99,235,0.08));
+      color: #1e40af;
+      border-color: rgba(59,130,246,0.4);
+    }
+
+    /* ──────────────────────────────────────────
+       HISTORICAL/LIVE STATUS BANNER
+    ────────────────────────────────────────── */
+    .status-banner {
+      position: absolute;
+      top: 56px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 35;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 16px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-family: 'JetBrains Mono', monospace;
+      backdrop-filter: blur(18px) saturate(180%);
+      -webkit-backdrop-filter: blur(18px) saturate(180%);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+      pointer-events: none;
+      transition: all 0.3s ease;
+    }
+    .status-banner.live {
+      background: linear-gradient(90deg, rgba(16,185,129,0.9), rgba(5,150,105,0.9));
+      color: white;
+      border: 1px solid rgba(255,255,255,0.4);
+    }
+    .status-banner.historical {
+      background: linear-gradient(90deg, rgba(245,158,11,0.95), rgba(217,119,6,0.95));
+      color: white;
+      border: 1px solid rgba(255,255,255,0.4);
+    }
+    .status-banner.demo {
+      background: linear-gradient(90deg, rgba(107,114,128,0.95), rgba(75,85,99,0.95));
+      color: white;
+      border: 1px solid rgba(255,255,255,0.4);
+    }
+
+    /* ──────────────────────────────────────────
+       REAL DATA MODE PANEL
+    ────────────────────────────────────────── */
+    .realdata-panel {
+      background:
+        linear-gradient(160deg, rgba(236,253,245,0.9) 0%, rgba(240,253,250,0.8) 100%);
+      border: 1px solid rgba(16,185,129,0.4);
+      border-radius: 16px;
+      box-shadow: 0 12px 30px rgba(16,185,129,0.12), inset 0 1px 0 rgba(255,255,255,0.9);
+    }
+
+    /* ──────────────────────────────────────────
        NAVBAR ACCENT LINE
     ────────────────────────────────────────── */
     .navbar-accent {
@@ -547,6 +639,12 @@
   </header>
 
 
+  <!-- HISTORICAL VS LIVE STATUS BANNER -->
+  <div id="statusBanner" class="status-banner historical">
+    <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+    <span id="statusBannerText">HISTORICAL DEMO DATA — NOT LIVE</span>
+  </div>
+
   <!-- MAIN MAP WORKSPACE -->
   <main class="flex-1 w-full h-full relative overflow-hidden flex">
     
@@ -580,6 +678,10 @@
         </div>
         <h1 id="regionName" class="text-2xl font-black tracking-tight text-neutral-900 leading-none">Mauritius // Pointe d'Esny</h1>
         <h2 id="regionSubtitle" class="text-[10px] font-bold tracking-[0.12em] uppercase" style="color: rgba(0,0,0,0.38);">Historical Validation Case</h2>
+        <div id="demoLabel" class="flex items-center gap-2 mt-1">
+          <span class="source-badge demo">Demo scenario</span>
+          <span class="text-[9px] font-mono" style="color: rgba(0,0,0,0.4);">Synthetic/default dashboard content</span>
+        </div>
         <div class="divider-gradient mt-1"></div>
       </div>
 
@@ -680,6 +782,94 @@
 
       <!-- TAB 3: PHYSICS & WEATHERING -->
       <div id="tabContentPhysics" class="space-y-3 hidden">
+        <!-- REAL DATA SELECTION PANEL -->
+        <div class="glass-card p-3.5 rounded-2xl space-y-2.5">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-[10px] font-mono font-extrabold uppercase tracking-[0.16em]">Real Data Selection</div>
+              <div class="text-[9px] font-mono" style="color: rgba(0,0,0,0.45);">Bounding box, date/time, historical NOAA AIS window</div>
+            </div>
+            <span class="source-badge modelled">Configurable</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div class="space-y-1">
+              <label class="text-[8px] font-mono uppercase tracking-[0.12em]" style="color: rgba(0,0,0,0.4);">Min Lon</label>
+              <input id="realBboxMinLon" value="-95.0" class="w-full px-2 py-1 rounded-lg text-[10px] font-mono bg-white/80 border border-black/10" />
+            </div>
+            <div class="space-y-1">
+              <label class="text-[8px] font-mono uppercase tracking-[0.12em]" style="color: rgba(0,0,0,0.4);">Min Lat</label>
+              <input id="realBboxMinLat" value="27.0" class="w-full px-2 py-1 rounded-lg text-[10px] font-mono bg-white/80 border border-black/10" />
+            </div>
+            <div class="space-y-1">
+              <label class="text-[8px] font-mono uppercase tracking-[0.12em]" style="color: rgba(0,0,0,0.4);">Max Lon</label>
+              <input id="realBboxMaxLon" value="-90.0" class="w-full px-2 py-1 rounded-lg text-[10px] font-mono bg-white/80 border border-black/10" />
+            </div>
+            <div class="space-y-1">
+              <label class="text-[8px] font-mono uppercase tracking-[0.12em]" style="color: rgba(0,0,0,0.4);">Max Lat</label>
+              <input id="realBboxMaxLat" value="30.0" class="w-full px-2 py-1 rounded-lg text-[10px] font-mono bg-white/80 border border-black/10" />
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div class="space-y-1">
+              <label class="text-[8px] font-mono uppercase tracking-[0.12em]" style="color: rgba(0,0,0,0.4);">Start Date/Time</label>
+              <input id="realStartTime" type="datetime-local" value="2020-08-06T00:00" class="w-full px-2 py-1 rounded-lg text-[10px] font-mono bg-white/80 border border-black/10" />
+            </div>
+            <div class="space-y-1">
+              <label class="text-[8px] font-mono uppercase tracking-[0.12em]" style="color: rgba(0,0,0,0.4);">End Date/Time</label>
+              <input id="realEndTime" type="datetime-local" value="2020-08-07T23:59" class="w-full px-2 py-1 rounded-lg text-[10px] font-mono bg-white/80 border border-black/10" />
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div class="space-y-1">
+              <label class="text-[8px] font-mono uppercase tracking-[0.12em]" style="color: rgba(0,0,0,0.4);">NOAA AIS Day</label>
+              <input id="realAisDay" value="2020-08-06" class="w-full px-2 py-1 rounded-lg text-[10px] font-mono bg-white/80 border border-black/10" />
+            </div>
+            <div class="space-y-1">
+              <label class="text-[8px] font-mono uppercase tracking-[0.12em]" style="color: rgba(0,0,0,0.4);">Historical Window (hrs)</label>
+              <input id="realHistWindow" type="number" value="48" class="w-full px-2 py-1 rounded-lg text-[10px] font-mono bg-white/80 border border-black/10" />
+            </div>
+          </div>
+          <div class="text-[8px] font-mono" style="color: rgba(0,0,0,0.4);">Values pre-filled from default public case; adjust for custom real-data runs.</div>
+        </div>
+
+        <!-- REAL DATA MODE SECTION -->
+        <div class="realdata-panel p-3.5 rounded-2xl space-y-2.5">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-[10px] font-mono font-extrabold uppercase tracking-[0.16em] text-emerald-800">Real Data Mode</div>
+              <div class="text-[9px] font-mono text-emerald-700/80">GFS wind, NOAA AIS, Sentinel-1, Copernicus provenance</div>
+            </div>
+            <span class="source-badge real">Real capable</span>
+          </div>
+          <div class="grid grid-cols-2 gap-1.5 text-[9px] font-mono">
+            <div class="flex items-center justify-between px-2 py-1 rounded-lg bg-white/70 border border-emerald-200/70">
+              <span class="text-emerald-900/80">NOAA GFS Wind</span>
+              <span id="srcGfs" class="source-badge fallback">unknown</span>
+            </div>
+            <div class="flex items-center justify-between px-2 py-1 rounded-lg bg-white/70 border border-emerald-200/70">
+              <span class="text-emerald-900/80">Copernicus Currents</span>
+              <span id="srcCopernicus" class="source-badge fallback">unknown</span>
+            </div>
+            <div class="flex items-center justify-between px-2 py-1 rounded-lg bg-white/70 border border-emerald-200/70">
+              <span class="text-emerald-900/80">Sentinel-1</span>
+              <span id="srcSentinel" class="source-badge demo">demo</span>
+            </div>
+            <div class="flex items-center justify-between px-2 py-1 rounded-lg bg-white/70 border border-emerald-200/70">
+              <span class="text-emerald-900/80">NOAA AIS</span>
+              <span id="srcNoaaAis" class="source-badge demo">demo</span>
+            </div>
+          </div>
+          <button id="btnCheckMetocean" class="btn-premium w-full py-2 text-emerald-900 rounded-xl text-[11px] font-bold flex items-center justify-center space-x-2" style="background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(236,253,245,0.9)); border: 1px solid rgba(16,185,129,0.4); box-shadow: 0 2px 10px rgba(16,185,129,0.12);">
+            <i data-lucide="activity" class="w-3.5 h-3.5"></i>
+            <span>Check Provider Status</span>
+          </button>
+          <button id="btnGfsBacktrack" class="btn-premium w-full py-2 text-white rounded-xl text-[11px] font-bold flex items-center justify-center space-x-2" style="background: linear-gradient(135deg, #065f46, #10b981); box-shadow: 0 4px 14px rgba(16,185,129,0.24);">
+            <i data-lucide="navigation-2" class="w-3.5 h-3.5"></i>
+            <span>Run GFS Wind Backtracking</span>
+          </button>
+          <div id="metoceanStatus" class="text-[9px] font-mono text-emerald-900/80 bg-white/60 rounded-lg px-2 py-1 border border-emerald-200/60 hidden"></div>
+        </div>
+
         <div class="glass-card p-3.5 rounded-2xl space-y-3">
           <div class="text-[9px] font-mono uppercase font-bold tracking-[0.12em] flex items-center justify-between pb-1.5 border-b" style="color: rgba(0,0,0,0.38); border-color: rgba(0,0,0,0.07);">
             <span>Petroleum Weathering Curves · 72h</span>
@@ -738,6 +928,13 @@
           <i data-lucide="ship" class="w-3.5 h-3.5"></i>
           <span>Import Matched NOAA AIS Window</span>
         </button>
+        <div class="glass-card p-2.5 rounded-2xl space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-[9px] font-mono font-bold uppercase tracking-[0.12em]" style="color: rgba(0,0,0,0.4);">NOAA AIS Correlation</span>
+            <span id="noaaAisStatus" class="source-badge demo">Not imported</span>
+          </div>
+          <div id="noaaAisResults" class="text-[9px] font-mono space-y-1 hidden" style="color: rgba(0,0,0,0.6);"></div>
+        </div>
       </div>
 
     </aside>
@@ -1342,12 +1539,14 @@
       applyOceanStyling();
       setupMapLayers();
       loadScenario('scenario_wakashio_validation');
+      updateStatusBanner('scenario_wakashio_validation');
     });
 
     map.on('style.load', () => {
       applyOceanStyling();
       setupMapLayers();
-      if (currentScenarioData) renderScenario(currentScenarioData);
+      if (currentScenarioData) { renderScenario(currentScenarioData); updateStatusBanner(currentScenarioData.id); }
+      else updateStatusBanner(window.currentScenarioId || 'scenario_wakashio_validation');
     });
 
     // 3D Tilt Toggle
@@ -1895,7 +2094,32 @@
       }
     });
 
+    function updateStatusBanner(scenarioId) {
+      const banner = document.getElementById('statusBanner');
+      const bannerText = document.getElementById('statusBannerText');
+      const demoLabel = document.getElementById('demoLabel');
+      if (!banner || !bannerText) return;
+      if (scenarioId === 'scenario_wakashio_validation') {
+        banner.className = 'status-banner historical';
+        bannerText.textContent = 'HISTORICAL DEMO DATA — NOT LIVE (MV Wakashio 2020)';
+      } else if (scenarioId && scenarioId.startsWith('scenario_')) {
+        banner.className = 'status-banner demo';
+        bannerText.textContent = 'DEMO SCENARIO — Synthetic/default dashboard content';
+      } else {
+        banner.className = 'status-banner live';
+        bannerText.textContent = 'LIVE DATA MODE';
+      }
+      if (demoLabel) {
+        if (scenarioId && scenarioId.startsWith('scenario_')) {
+          demoLabel.classList.remove('hidden');
+        } else {
+          demoLabel.classList.add('hidden');
+        }
+      }
+    }
+
     function renderScenario(data, timelinePct = 100) {
+      updateStatusBanner(data.id);
       clearActiveMarkers();
       // Only clear vessel markers when the scenario itself changes
       if (activeVesselList !== (data.vessels || []) && activeVesselMarkers.size > 0) {
@@ -2246,6 +2470,7 @@
 
     // Scenario Dropdown Listener
     document.getElementById('scenarioSelect').addEventListener('change', (e) => {
+      updateStatusBanner(e.target.value);
       loadScenario(e.target.value);
     });
 
@@ -2284,7 +2509,7 @@
         dossierModal.classList.remove('hidden');
       } catch (e) {
         if (contentEl) {
-          contentEl.textContent = `Unable to load the dossier. Start seaLens with \`python3 start.py\`, then open \`http://localhost:8000/c2\`.\n\nTechnical detail: ${e.message || e}`;
+          contentEl.textContent = `Unable to load the dossier. Start seaLens with \`python3 start.py\`, then open \`http://localhost:8000/c2\`.\n\nTechnical detail: ${e.message || e}\n\nIf the API is unreachable, check network/CORS and ensure FastAPI is running.`;
         }
         dossierModal.classList.remove('hidden');
       }
@@ -2759,7 +2984,7 @@
     if (btnRealData) btnRealData.addEventListener('click', async () => {
       const original = btnRealData.innerHTML;
       if (window.location.protocol === 'file:') {
-        alert('Real public-data analysis requires the seaLens API.\n\nStart it from the project folder:\npython3 start.py\n\nThen open:\nhttp://localhost:8000/c2');
+        alert('Real public-data analysis requires the seaLens API.\n\nStart it from the project folder:\npython3 start.py\n\nThen open:\nhttp://localhost:8000/c2\n\nTip: Use a local server (not file://) to avoid CORS/Failed to fetch errors.');
         return;
       }
       btnRealData.innerHTML = '<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>Fetching public SAR case…</span>';
@@ -2789,6 +3014,7 @@
         if (radarSubtitle) radarSubtitle.textContent = `${result.slick_polygons_detected_count} candidate slick regions · ${result.radar_ships_detected_count} radar contacts · investigative leads only`;
         map.flyTo({center: lastGeoTIFFCenter, zoom: 9.4, pitch: 35, bearing: -12, duration: 1200});
         setTimeout(() => radarHud && radarHud.classList.add('hidden'), 5000);
+        setSourceBadge('srcSentinel', 'real', 'real (Sentinel-1)');
       } catch (error) {
         if (radarHud) radarHud.classList.add('hidden');
         alert(`Real public-data analysis could not complete: ${error.message || error}`);
@@ -2801,7 +3027,7 @@
 
     if (btnNOAAAIS) btnNOAAAIS.addEventListener('click', async () => {
       if (window.location.protocol === 'file:') {
-        alert('NOAA AIS import requires the seaLens API.\n\nStart it from the project folder:\npython3 start.py\n\nThen open:\nhttp://localhost:8000/c2');
+        alert('NOAA AIS import requires the seaLens API.\n\nStart it from the project folder:\npython3 start.py\n\nThen open:\nhttp://localhost:8000/c2\n\nTip: Use a local server (not file://) to avoid CORS/Failed to fetch errors.');
         return;
       }
       if (!confirm('This downloads a public NOAA national AIS daily archive (about 178 MB), then stores only the matched Texas Gulf Coast / 30-second subset locally. Continue?')) return;
@@ -2811,17 +3037,43 @@
       lucide.createIcons();
       try {
         const manifest = await fetch('/api/real-data/default-case').then(r => r.ok ? r.json() : Promise.reject(new Error('Could not load public case')));
+        const bbox = [
+          parseFloat(document.getElementById('realBboxMinLon').value || manifest.case.bbox[0]),
+          parseFloat(document.getElementById('realBboxMinLat').value || manifest.case.bbox[1]),
+          parseFloat(document.getElementById('realBboxMaxLon').value || manifest.case.bbox[2]),
+          parseFloat(document.getElementById('realBboxMaxLat').value || manifest.case.bbox[3]),
+        ];
+        const day = document.getElementById('realAisDay').value || manifest.case.ais_day;
+        const startTime = document.getElementById('realStartTime').value ? document.getElementById('realStartTime').value + ':00Z' : manifest.case.acquisition_start;
+        const endTime = document.getElementById('realEndTime').value ? document.getElementById('realEndTime').value + ':00Z' : manifest.case.acquisition_end;
         const subset = await fetch('/api/real-data/noaa-ais/import', {
           method: 'POST', headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({day: manifest.case.ais_day, bbox: manifest.case.bbox, start_time: manifest.case.acquisition_start, end_time: manifest.case.acquisition_end, allow_large_download: true})
+          body: JSON.stringify({day, bbox, start_time: startTime, end_time: endTime, allow_large_download: true})
         }).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(new Error(e.detail || 'AIS import failed'))));
         const filename = subset.output_path.split('/').pop();
-        const centerLng = (manifest.case.bbox[0] + manifest.case.bbox[2]) / 2;
-        const centerLat = (manifest.case.bbox[1] + manifest.case.bbox[3]) / 2;
+        const centerLng = (bbox[0] + bbox[2]) / 2;
+        const centerLat = (bbox[1] + bbox[3]) / 2;
         const correlation = await fetch('/api/real-data/noaa-ais/correlate', {
           method: 'POST', headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({filename, origin_lat: centerLat, origin_lng: centerLng})
         }).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(new Error(e.detail || 'AIS correlation failed'))));
+        setSourceBadge('srcNoaaAis', 'real', 'real (NOAA)');
+        const statusEl = document.getElementById('noaaAisStatus');
+        const resultsEl = document.getElementById('noaaAisResults');
+        if (statusEl) { statusEl.className = 'source-badge real'; statusEl.textContent = 'Imported & correlated'; }
+        if (resultsEl) {
+          resultsEl.classList.remove('hidden');
+          resultsEl.innerHTML = `<div>Records kept: <b>${subset.records_kept}</b></div><div>Vessels normalized: <b>${correlation.vessels_loaded}</b></div><div>Ranked candidates: <b>${correlation.matches.length}</b></div>`;
+        }
+        // Show on map if possible
+        if (map && map.getSource('vessels-src') && correlation.matches) {
+          const feats = correlation.matches.slice(0, 50).map((m, i) => ({
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [m.lng, m.lat] },
+            properties: { id: m.mmsi, name: m.vessel_name || `VSL-${i}`, type: m.ship_type || 'Unknown', flag: m.flag || '', mmsi: m.mmsi, isDark: false, ais_health: 'LIVE' }
+          }));
+          map.getSource('vessels-src').setData({ type: 'FeatureCollection', features: feats });
+        }
         alert(`NOAA AIS complete.\n\nRecords kept: ${subset.records_kept}\nVessels normalized: ${correlation.vessels_loaded}\nRanked candidate tracks: ${correlation.matches.length}\n\nThe resulting scores are investigative leads, not proof of responsibility.`);
       } catch (error) {
         alert(`NOAA AIS import could not complete: ${error.message || error}`);
