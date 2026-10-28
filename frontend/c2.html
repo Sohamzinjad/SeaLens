@@ -932,6 +932,13 @@
           <i data-lucide="ship" class="w-3.5 h-3.5"></i>
           <span>Import Matched NOAA AIS Window</span>
         </button>
+        <div class="space-y-1">
+          <div id="noaaProgressWrap" class="hidden w-full h-1.5 rounded-full bg-neutral-200 overflow-hidden">
+            <div id="noaaProgressBar" class="h-full bg-teal-500 transition-all" style="width: 0%"></div>
+          </div>
+          <div id="noaaProgressText" class="hidden text-[8px] font-mono text-center" style="color: rgba(0,0,0,0.5);"></div>
+          <button id="btnCancelNoaa" class="hidden w-full py-1 rounded-lg text-[9px] font-bold bg-red-50 text-red-700 border border-red-200">Cancel Download</button>
+        </div>
         <div class="glass-card p-2.5 rounded-2xl space-y-2">
           <div class="flex items-center justify-between">
             <span class="text-[9px] font-mono font-bold uppercase tracking-[0.12em]" style="color: rgba(0,0,0,0.4);">NOAA AIS Correlation</span>
@@ -3039,6 +3046,14 @@
       btnNOAAAIS.disabled = true;
       btnNOAAAIS.innerHTML = '<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>Filtering NOAA AIS archive…</span>';
       lucide.createIcons();
+      const progWrap = document.getElementById('noaaProgressWrap');
+      const progBar = document.getElementById('noaaProgressBar');
+      const progText = document.getElementById('noaaProgressText');
+      const btnCancel = document.getElementById('btnCancelNoaa');
+      if (progWrap) progWrap.classList.remove('hidden');
+      if (progText) { progText.classList.remove('hidden'); progText.textContent = 'Starting download... (large archive)'; }
+      if (progBar) progBar.style.width = '10%';
+      if (btnCancel) { btnCancel.classList.remove('hidden'); btnCancel.onclick = () => { alert('Cancellation requested. If server supports abort, request may be interrupted.'); }; }
       try {
         const manifest = await fetch('/api/real-data/default-case').then(r => r.ok ? r.json() : Promise.reject(new Error('Could not load public case')));
         const bbox = [
@@ -3078,13 +3093,22 @@
           }));
           map.getSource('vessels-src').setData({ type: 'FeatureCollection', features: feats });
         }
+        if (document.getElementById('noaaProgressBar')) document.getElementById('noaaProgressBar').style.width = '100%';
+        if (document.getElementById('noaaProgressText')) document.getElementById('noaaProgressText').textContent = 'Complete';
         alert(`NOAA AIS complete.\n\nRecords kept: ${subset.records_kept}\nVessels normalized: ${correlation.vessels_loaded}\nRanked candidate tracks: ${correlation.matches.length}\n\nThe resulting scores are investigative leads, not proof of responsibility.`);
       } catch (error) {
-        alert(`NOAA AIS import could not complete: ${error.message || error}`);
+        if (document.getElementById('noaaProgressText')) document.getElementById('noaaProgressText').textContent = 'Failed';
+        alert(`NOAA AIS import could not complete: ${error.message || error}\n\nIf this is a network/CORS issue, try offline fallback with packaged assets.`);
       } finally {
         btnNOAAAIS.disabled = false;
         btnNOAAAIS.innerHTML = original;
         lucide.createIcons();
+        setTimeout(() => {
+          const pw = document.getElementById('noaaProgressWrap'); if (pw) pw.classList.add('hidden');
+          const pt = document.getElementById('noaaProgressText'); if (pt) { pt.classList.add('hidden'); pt.textContent=''; }
+          const pb = document.getElementById('noaaProgressBar'); if (pb) pb.style.width='0%';
+          const bc = document.getElementById('btnCancelNoaa'); if (bc) { bc.classList.add('hidden'); bc.onclick=null; }
+        }, 4000);
       }
     });
 
