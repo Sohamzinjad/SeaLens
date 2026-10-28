@@ -6,7 +6,7 @@ import os
 from datetime import datetime
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, PlainTextResponse, JSONResponse, Response
+from fastapi.responses import HTMLResponse, PlainTextResponse, JSONResponse, Response, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Dict, Any, List
@@ -144,7 +144,16 @@ class RealMetOceanBacktrackRequest(MetOceanPrepareRequest):
 
 @app.get("/api/health")
 def health_check():
-    return {"status": "operational", "system": "seaLens C2 Engine", "unet_loaded": os.path.exists(checkpoint_path)}
+    return {"status": "operational", "system": "seaLens C2 Engine", "unet_loaded": os.path.exists(checkpoint_path), "timestamp": datetime.utcnow().isoformat() + "Z"}
+
+
+@app.get("/health", response_class=HTMLResponse)
+def health_page():
+    try:
+        with open("health.html", "r", encoding="utf-8") as f:
+            return f.read()
+    except Exception as e:
+        return f"<html><body><h1>Health</h1><pre>{e}</pre></body></html>"
 
 
 @app.get("/api/real-data/metocean/status")
