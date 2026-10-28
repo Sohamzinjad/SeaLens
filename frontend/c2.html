@@ -734,6 +734,10 @@
           <i data-lucide="satellite" class="w-3.5 h-3.5"></i>
           <span>Run Public Sentinel-1 RTC Case</span>
         </button>
+        <button id="btnNOAAAIS" class="btn-premium w-full py-2.5 text-white rounded-2xl text-xs font-bold flex items-center justify-center space-x-2" style="background: linear-gradient(135deg, #0F766E, #14B8A6); box-shadow: 0 4px 16px rgba(20,184,166,0.22), inset 0 1px 0 rgba(255,255,255,0.12);">
+          <i data-lucide="ship" class="w-3.5 h-3.5"></i>
+          <span>Import Matched NOAA AIS Window</span>
+        </button>
       </div>
 
     </aside>
@@ -2740,6 +2744,7 @@
     // ────────────────────────────────────────────────────────────
     const btnGeoTIFF = document.getElementById('btnGeoTIFF');
     const btnRealData = document.getElementById('btnRealData');
+    const btnNOAAAIS = document.getElementById('btnNOAAAIS');
     const radarHud = document.getElementById('radarHudOverlay');
     const radarTitle = document.getElementById('radarHudTitle');
     const radarSubtitle = document.getElementById('radarHudSubtitle');
@@ -2790,6 +2795,39 @@
       } finally {
         btnRealData.innerHTML = original;
         btnRealData.disabled = false;
+        lucide.createIcons();
+      }
+    });
+
+    if (btnNOAAAIS) btnNOAAAIS.addEventListener('click', async () => {
+      if (window.location.protocol === 'file:') {
+        alert('NOAA AIS import requires the seaLens API.\n\nStart it from the project folder:\npython3 start.py\n\nThen open:\nhttp://localhost:8000/c2');
+        return;
+      }
+      if (!confirm('This downloads a public NOAA national AIS daily archive (about 178 MB), then stores only the matched Texas Gulf Coast / 30-second subset locally. Continue?')) return;
+      const original = btnNOAAAIS.innerHTML;
+      btnNOAAAIS.disabled = true;
+      btnNOAAAIS.innerHTML = '<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>Filtering NOAA AIS archive…</span>';
+      lucide.createIcons();
+      try {
+        const manifest = await fetch('/api/real-data/default-case').then(r => r.ok ? r.json() : Promise.reject(new Error('Could not load public case')));
+        const subset = await fetch('/api/real-data/noaa-ais/import', {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({day: manifest.case.ais_day, bbox: manifest.case.bbox, start_time: manifest.case.acquisition_start, end_time: manifest.case.acquisition_end, allow_large_download: true})
+        }).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(new Error(e.detail || 'AIS import failed'))));
+        const filename = subset.output_path.split('/').pop();
+        const centerLng = (manifest.case.bbox[0] + manifest.case.bbox[2]) / 2;
+        const centerLat = (manifest.case.bbox[1] + manifest.case.bbox[3]) / 2;
+        const correlation = await fetch('/api/real-data/noaa-ais/correlate', {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({filename, origin_lat: centerLat, origin_lng: centerLng})
+        }).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(new Error(e.detail || 'AIS correlation failed'))));
+        alert(`NOAA AIS complete.\n\nRecords kept: ${subset.records_kept}\nVessels normalized: ${correlation.vessels_loaded}\nRanked candidate tracks: ${correlation.matches.length}\n\nThe resulting scores are investigative leads, not proof of responsibility.`);
+      } catch (error) {
+        alert(`NOAA AIS import could not complete: ${error.message || error}`);
+      } finally {
+        btnNOAAAIS.disabled = false;
+        btnNOAAAIS.innerHTML = original;
         lucide.createIcons();
       }
     });
