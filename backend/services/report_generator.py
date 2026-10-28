@@ -1,13 +1,16 @@
 import hashlib
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from backend.models import ScenarioData
 from backend.services.repeat_offender_engine import RepeatOffenderEngine
 from ml_engine.metrics import haversine_distance_km
 
 repeat_engine = RepeatOffenderEngine()
 
-def generate_markdown_dossier(scenario: ScenarioData) -> str:
+def generate_markdown_dossier(
+    scenario: ScenarioData,
+    extra_metadata: Optional[Dict[str, Any]] = None,
+) -> str:
     """Generates an official markdown forensic evidence dossier with dynamic SHA-256 cryptographic proof."""
     primary_slick = scenario.slicks[0] if scenario.slicks else None
     primary_suspect = scenario.culprits[0] if scenario.culprits else None
@@ -138,6 +141,22 @@ This historical case does not claim to discover an unknown culprit: the Pointe d
 - **Public-record sources (not system-derived):** [IMO Wakashio response](https://www.imo.org/en/mediacentre/hottopics/pages/wakashio-faq.aspx) and [Mauritius Ministry of Environment](https://environment.govmu.org/Pages/wakashio.aspx).
 """
 
+    metadata_section = ""
+    if extra_metadata:
+        sources = extra_metadata.get("data_sources", [])
+        timestamps = extra_metadata.get("timestamps", {})
+        cache_status = extra_metadata.get("cache_status", {})
+        warnings = extra_metadata.get("uncertainty_warnings", [])
+        metadata_section = "\n---\n\n## DATA SOURCES, TIMESTAMPS & UNCERTAINTY\n"
+        if sources:
+            metadata_section += "\n### Data Sources\n" + "".join(f"- {source}\n" for source in sources)
+        if timestamps:
+            metadata_section += "\n### Timestamps\n" + "".join(f"- **{key.replace('_', ' ').title()}:** {value}\n" for key, value in timestamps.items())
+        if cache_status:
+            metadata_section += "\n### Cache Status\n" + "".join(f"- **{key.replace('_', ' ').title()}:** {value}\n" for key, value in cache_status.items())
+        if warnings:
+            metadata_section += "\n### Uncertainty Warnings\n" + "".join(f"- {warning}\n" for warning in warnings)
+
     report += f"""
 ---
 
@@ -149,4 +168,5 @@ This automated forensic evidence dossier has been generated via automated SAR Ea
 - **Verification Status:** 🔒 Cryptographically Sealed Evidence Artifact (SHA-256 Digest Verified)
 - **Prosecution Action Recommended:** {repeat_profile.recommended_interception_protocol}
 """
+    report += metadata_section
     return report
