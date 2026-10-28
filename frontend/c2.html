@@ -2753,6 +2753,10 @@
     // no synthetic fallback: failure remains visible rather than manufacturing a result.
     if (btnRealData) btnRealData.addEventListener('click', async () => {
       const original = btnRealData.innerHTML;
+      if (window.location.protocol === 'file:') {
+        alert('Real public-data analysis requires the seaLens API.\n\nStart it from the project folder:\npython3 start.py\n\nThen open:\nhttp://localhost:8000/c2');
+        return;
+      }
       btnRealData.innerHTML = '<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>Fetching public SAR case…</span>';
       btnRealData.disabled = true;
       lucide.createIcons();

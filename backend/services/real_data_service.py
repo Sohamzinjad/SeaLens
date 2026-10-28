@@ -24,6 +24,8 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 import requests
 import numpy as np
 
+from backend.models import TelemetryPoint, VesselMetadata, VesselTrack
+
 try:  # Optional until a user starts a NOAA bulk import.
     import zstandard as zstd
 except ImportError:  # pragma: no cover - exercised by the API error path.
@@ -321,3 +323,110 @@ def download_noaa_ais_subset(
         "time_window_utc": {"start": start_time, "end": end_time},
         "attribution": "NOAA/BOEM MarineCadastre AIS data; one-minute broadcast records.",
     }
+
+
+AIS_TYPE_NAMES = {
+    30: "Fishing Vessel", 31: "Tugboat", 32: "Tugboat", 36: "Pleasure Craft",
+    37: "Pleasure Craft", 52: "Tugboat", 60: "Passenger / Cruise", 69: "Passenger / Cruise",
+    70: "General Cargo", 71: "General Cargo", 72: "General Cargo", 79: "General Cargo",
+    80: "Oil Products Tanker", 81: "Chemical Tanker", 82: "Crude Oil Tanker",
+    83: "Oil Products Tanker", 84: "Oil Products Tanker", 89: "Oil Products Tanker",
+}
+
+
+def _as_float(value: Any, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _as_int(value: Any, default: int = 0) -> int:
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return default
+
+
+def _ship_type_from_ais(value: Any) -> str:
+    code = _as_int(value, -1)
+    return AIS_TYPE_NAMES.get(code, "General Cargo")
+
+
+def _nav_status(value: Any) -> str:
+    labels = {
+        0: "Under way using engine", 1: "At anchor", 2: "Not under command",
+        3: "Restricted maneuverability", 5: "Moored", 6: "Aground",
+    }
+    return labels.get(_as_int(value, -1), "Unknown")
+
+
+def load_noaa_ais_tracks(
+    filepath: str,
+    max_vessels: int = 500,
+    min_positions: int = 1,
+) -> List[VesselTrack]:
+    """Normalize a locally cached NOAA subset into existing AIS vessel tracks.
+
+    NOAA's CSV describes broadcast positions, not verified vessel registries.
+    Missing metadata is retained as an explicit ``UNKNOWN`` label rather than
+    invented.  The cap is intentional: this is a demo/investigation endpoint,
+    not a replacement for PostGIS-scale indexing.
+    """
+    if not os.path.isfile(filepath):
+        raise RealDataError("AIS subset was not found. Import the NOAA subset first.")
+    if not 1 <= max_vessels <= 2_000:
+        raise RealDataError("max_vessels must be between 1 and 2000")
+    grouped: Dict[int, List[Dict[str, str]]] = {}
+    try:
+        with open(filepath, encoding="utf-8", newline="") as source:
+            for row in csv.DictReader(source):
+                mmsi = _as_int(row.get("MMSI"), 0)
+                timestamp = row.get("BaseDateTime", "")
+                if not mmsi or not timestamp:
+                    continue
+                # Validate required movement/location values before model creation.
+                try:
+                    float(row["LAT"]); float(row["LON"])
+                    _utc_timestamp(timestamp)
+                except (KeyError, TypeError, ValueError):
+                    continue
+                grouped.setdefault(mmsi, []).append(row)
+    except OSError as exc:
+        raise RealDataError(f"Unable to read local AIS subset: {exc}") from exc
+
+    tracks: List[VesselTrack] = []
+    # Prioritize tracks with enough positions for a behavioral signal.
+    ordered_groups = sorted(grouped.items(), key=lambda item: len(item[1]), reverse=True)
+    for mmsi, rows in ordered_groups:
+        rows.sort(key=lambda row: row["BaseDateTime"])
+        if len(rows) < min_positions:
+            continue
+        first = rows[0]
+        positions = [TelemetryPoint(
+            timestamp=row["BaseDateTime"].replace("+00:00", "Z"),
+            lat=_as_float(row.get("LAT")),
+            lng=_as_float(row.get("LON")),
+            sog=_as_float(row.get("SOG")),
+            cog=_as_float(row.get("COG")),
+            heading=_as_float(row.get("Heading")) if row.get("Heading") not in (None, "", "511") else None,
+            nav_status=_nav_status(row.get("Status")),
+            draught_m=_as_float(row.get("Draft")) if row.get("Draft") not in (None, "") else None,
+        ) for row in rows]
+        tracks.append(VesselTrack(
+            metadata=VesselMetadata(
+                mmsi=mmsi,
+                imo=_as_int(first.get("IMO")) or None,
+                name=(first.get("VesselName") or f"MMSI {mmsi}").strip(),
+                callsign=(first.get("CallSign") or "").strip() or None,
+                ship_type=_ship_type_from_ais(first.get("VesselType")),
+                flag="UNKNOWN (NOAA AIS)",
+                length_m=_as_float(first.get("Length")),
+                beam_m=_as_float(first.get("Width")),
+                gross_tonnage=0,
+            ),
+            positions=positions,
+        ))
+        if len(tracks) >= max_vessels:
+            break
+    return tracks

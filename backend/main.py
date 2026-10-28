@@ -28,6 +28,7 @@ from backend.services.real_data_service import (
     RealDataError,
     download_noaa_ais_subset,
     download_sentinel_crop,
+    load_noaa_ais_tracks,
     public_case_manifest,
     search_sentinel_scenes,
 )
@@ -108,6 +109,14 @@ class NOAAAISImportRequest(BaseModel):
 class RealCropAnalysisRequest(BaseModel):
     filename: str
     threshold: float = Field(default=0.45, ge=0.05, le=0.95)
+
+
+class NOAAAISCorrelationRequest(BaseModel):
+    filename: str
+    origin_lat: float = Field(ge=-90, le=90)
+    origin_lng: float = Field(ge=-180, le=180)
+    slick_orientation_deg: float = Field(default=0.0, ge=0, lt=360)
+    max_vessels: int = Field(default=500, ge=1, le=2000)
 
 @app.get("/api/health")
 def health_check():
@@ -206,6 +215,42 @@ def analyze_real_sentinel_crop(request: RealCropAnalysisRequest):
         }
     except Exception as exc:
         raise HTTPException(status_code=422, detail=f"Real SAR analysis failed: {exc}") from exc
+
+
+@app.post("/api/real-data/noaa-ais/correlate")
+def correlate_noaa_ais(request: NOAAAISCorrelationRequest):
+    """Run the existing attribution engine against a local NOAA AIS subset.
+
+    The origin is analyst-supplied (for example, a reviewed backtrack result).
+    Scores rank follow-up candidates and never establish vessel responsibility.
+    """
+    filename = os.path.basename(request.filename)
+    if filename != request.filename or not filename.endswith(".csv"):
+        raise HTTPException(status_code=400, detail="filename must name a cached NOAA .csv subset")
+    csv_path = os.path.join("data_samples", "real_data", filename)
+    try:
+        tracks = load_noaa_ais_tracks(csv_path, max_vessels=request.max_vessels)
+        # The correlation engine requires slick geometry only for its orientation.
+        correlation_slick = SlickPolygon(
+            id="real-data-analyst-origin",
+            geojson={"type": "Polygon", "coordinates": [[[request.origin_lng, request.origin_lat], [request.origin_lng + 0.001, request.origin_lat], [request.origin_lng, request.origin_lat + 0.001], [request.origin_lng, request.origin_lat]]]},
+            centroid=GeoPoint(lat=request.origin_lat, lng=request.origin_lng),
+            area_sqkm=0.01, perimeter_km=0.1, length_major_axis_km=0.1,
+            orientation_deg=request.slick_orientation_deg, confidence_score=0.0,
+            estimated_volume_m3=0.0,
+        )
+        matches = correlation_engine.correlate_incident(
+            correlation_slick, request.origin_lat, request.origin_lng, tracks
+        )
+        return {
+            "source": "NOAA/BOEM MarineCadastre local AIS subset",
+            "vessels_loaded": len(tracks),
+            "origin": {"lat": request.origin_lat, "lng": request.origin_lng, "analyst_supplied": True},
+            "matches": [match.model_dump() for match in matches],
+            "notice": "Composite scores are probabilistic investigative prioritization only. Validate source data and corroborate before any enforcement decision.",
+        }
+    except RealDataError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 def _scenario_radar_signature_specs(sc: ScenarioData) -> List[Dict[str, Any]]:
     """Return synthetic SAR-scatterer inputs, never precomputed detector output."""

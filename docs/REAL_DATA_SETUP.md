@@ -25,6 +25,10 @@ case and must not be presented as proof that an observed feature is oil.
 4. `POST /api/real-data/noaa-ais/import` downloads and keeps only AIS broadcasts
    inside the requested bounding box and acquisition-time window. It requires `allow_large_download: true`
    because a daily nationwide NOAA archive is typically hundreds of MB.
+5. `POST /api/real-data/noaa-ais/correlate` normalizes the cached subset into
+   vessel tracks and runs the existing attribution engine against an
+   analyst-reviewed origin coordinate. It returns candidate rankings, never a
+   claim of responsibility.
 
 The default scene crop is an analysis-ready, georeferenced RTC COG. The generic
 STAC search can also discover raw GRD measurements; those are deliberately not
