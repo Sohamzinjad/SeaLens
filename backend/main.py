@@ -778,3 +778,58 @@ def serve_c2_console():
 
 if __name__ == "__main__":
     uvicorn.run("backend.main:app", host="0.0.0.0", port=8000, reload=True)
+
+
+# Run manifest / reproducibility endpoints
+import json
+from pathlib import Path
+
+RUNS_DIR = Path("runs")
+RUNS_DIR.mkdir(exist_ok=True)
+
+
+class RunManifestRequest(BaseModel):
+    name: str = Field(default="demo-run", min_length=1, max_length=80)
+    bbox: List[float] = Field(min_length=4, max_length=4)
+    start_time: str
+    end_time: str
+    scenario_id: str = ""
+    source_urls: List[str] = Field(default_factory=list)
+    parameters: Dict[str, Any] = Field(default_factory=dict)
+    cached_files: List[str] = Field(default_factory=list)
+    notes: str = ""
+
+
+@app.post("/api/runs/save")
+def save_run_manifest(request: RunManifestRequest):
+    ts = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+    manifest = {
+        "run_id": f"run_{ts}",
+        "saved_at": datetime.utcnow().isoformat() + "Z",
+        **request.model_dump(),
+    }
+    path = RUNS_DIR / f"{manifest['run_id']}.json"
+    with open(path, "w") as f:
+        json.dump(manifest, f, indent=2)
+    return {"status": "saved", "path": str(path), "manifest": manifest}
+
+
+@app.get("/api/runs/list")
+def list_run_manifests():
+    runs = []
+    for p in sorted(RUNS_DIR.glob("*.json"), reverse=True):
+        try:
+            with open(p) as f:
+                runs.append(json.load(f))
+        except Exception:
+            pass
+    return {"runs": runs}
+
+
+@app.get("/api/runs/{run_id}")
+def get_run_manifest(run_id: str):
+    path = RUNS_DIR / f"{run_id}.json"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Run not found")
+    with open(path) as f:
+        return json.load(f)

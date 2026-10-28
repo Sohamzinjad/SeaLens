@@ -1,10 +1,49 @@
-__pycache__/
-*.pyc
-.pytest_cache/
-*.pdf
-!pdf_assets/
-venv/
+# Environment
 .env
+.env.local
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+
+# Large downloads
+*.zip
+*.tar.gz
+*.nc
+*.grib
+*.grib2
+*.idx
+
+# Real data caches that are large
+data_samples/real_data/*.tif
+data_samples/real_data/*.csv
+data_samples/real_data/*.nc
+!data_samples/real_data/offline_demo/*
+!data_samples/real_data/offline_demo/**
+
+# Model weights (large)
+ml_engine/checkpoints/*.pt
+ml_engine/checkpoints/*.pth
+!ml_engine/checkpoints/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
 .DS_Store
-data_samples/real_data/
-data_samples/metocean_cache/
+Thumbs.db
+
+# Keys/certs
+*.pem
+*.key
+*.crt
