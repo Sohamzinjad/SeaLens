@@ -100,7 +100,7 @@ def public_case_manifest() -> Dict[str, Any]:
             "ais_archive": "https://marinecadastre.gov/accessais/",
             "ais_bulk_index": "https://noaaocm.blob.core.windows.net/ais/csv2/csv2024/index.html",
         },
-        "attribution": "Contains modified Copernicus Sentinel data (2024); AIS data: NOAA/BOEM MarineCadastre.",
+        "attribution": "Contains modified Copernicus Sentinel data (2020); AIS data: NOAA/BOEM MarineCadastre.",
         "limitations": [
             "This setup aligns real public SAR and AIS data; it does not label or prove an oil spill.",
             "Raw Sentinel-1 GRD measurement TIFFs require calibration and careful interpretation before operational use.",
@@ -240,7 +240,7 @@ def download_sentinel_crop(
         "shape": [write_height, write_width],
         "crs": str(profile.get("crs")),
         "bounds_in_scene_crs": [round(value, 3) for value in crop_bounds],
-        "attribution": "Contains modified Copernicus Sentinel data (2024).",
+        "attribution": "Contains modified Copernicus Sentinel data (2020).",
     }
 
 

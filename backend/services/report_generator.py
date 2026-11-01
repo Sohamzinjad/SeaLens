@@ -143,11 +143,19 @@ This historical case does not claim to discover an unknown culprit: the Pointe d
 
     metadata_section = ""
     if extra_metadata:
+        provenance = extra_metadata.get("data_provenance", {})
         sources = extra_metadata.get("data_sources", [])
         timestamps = extra_metadata.get("timestamps", {})
         cache_status = extra_metadata.get("cache_status", {})
         warnings = extra_metadata.get("uncertainty_warnings", [])
         metadata_section = "\n---\n\n## DATA SOURCES, TIMESTAMPS & UNCERTAINTY\n"
+        if provenance:
+            metadata_section += (
+                "\n### Data Provenance\n"
+                f"- **Classification:** {provenance.get('classification', 'NOT VERIFIED')}\n"
+                f"- **Label:** {provenance.get('label', 'NOT VERIFIED')}\n"
+                f"- **Scope:** {provenance.get('detail', 'No provenance description available.')}\n"
+            )
         if sources:
             metadata_section += "\n### Data Sources\n" + "".join(f"- {source}\n" for source in sources)
         if timestamps:

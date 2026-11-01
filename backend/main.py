@@ -103,6 +103,37 @@ real_metocean_grid_engine = RealMetOceanGridEngine()
 REAL_DATA_DIR = "data_samples/real_data"
 
 
+def _provenance(classification: str, label: str, detail: str) -> Dict[str, str]:
+    """Use a compact, machine-readable label on every investigation result."""
+    return {"classification": classification, "label": label, "detail": detail}
+
+
+def _scenario_provenance(scenario: ScenarioData) -> Dict[str, str]:
+    if scenario.id == "scenario_wakashio_validation":
+        return _provenance(
+            "HISTORICAL_BACKTEST",
+            "HISTORICAL VALIDATION / MODELLED INPUTS",
+            "Public Wakashio facts are cited separately; SAR/AIS/environmental inputs in this scenario are demonstration data.",
+        )
+    return _provenance(
+        "SYNTHETIC",
+        "SIMULATED DEMO SCENARIO",
+        "SAR signatures, AIS tracks, and environmental values are authored demonstration inputs, not a live incident feed.",
+    )
+
+
+REAL_SENTINEL_PROVENANCE = _provenance(
+    "REAL_ARCHIVED",
+    "REAL ARCHIVED SENTINEL-1 DATA",
+    "Public Copernicus Sentinel-1 scene/crop selected by the analyst; archive data are not live telemetry.",
+)
+REAL_AIS_PROVENANCE = _provenance(
+    "REAL_ARCHIVED",
+    "REAL ARCHIVED NOAA AIS DATA",
+    "NOAA/BOEM MarineCadastre historical broadcast positions; coverage and metadata remain subject to archive limitations.",
+)
+
+
 def _audit_request(action: str, http_request: Request, *, parameters: Dict[str, Any], source_url: str | None = None, filepath: str | None = None) -> None:
     """Record reproducibility metadata without logging request bodies or credentials."""
     log_audit_event(action, {
@@ -194,7 +225,13 @@ def health_page():
 @app.get("/api/real-data/metocean/providers")
 def metocean_status():
     """Show exactly which real met-ocean providers are available locally."""
-    return real_metocean_grid_engine.provider_status()
+    result = real_metocean_grid_engine.provider_status()
+    result["data_provenance"] = _provenance(
+        "REAL_MODEL_OUTPUT",
+        "MET-OCEAN PROVIDER STATUS",
+        "Provider availability is reported as configured; a modelled fallback is explicitly identified in each backtrack result.",
+    )
+    return result
 
 
 @app.post("/api/real-data/metocean/prepare")
@@ -205,6 +242,11 @@ def prepare_real_metocean(request: MetOceanPrepareRequest, http_request: Request
         validate_date(request.detection_timestamp)
         result = real_metocean_grid_engine.prepare_incident(**request.model_dump())
         _audit_request("metocean_prepare", http_request, parameters=request.model_dump())
+        result["data_provenance"] = _provenance(
+            "REAL_MODEL_OUTPUT",
+            "MET-OCEAN CACHE / FALLBACK STATUS",
+            "GFS and Copernicus grids are used only when retrieved successfully; unavailable fields retain their modelled fallback label.",
+        )
         return result
     except MetOceanError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -266,6 +308,11 @@ def backtrack_with_real_metocean(request: RealMetOceanBacktrackRequest, http_req
                 "Backtracking is probabilistic investigative support, not proof. "
                 "Check source provenance: a modelled fallback is not real measured/grid data."
             ),
+            "data_provenance": _provenance(
+                "REAL_MODEL_OUTPUT",
+                "MET-OCEAN BACKTRACK",
+                "Inspect wind_source and current_source: any modelled_fallback value means that vector did not come from a downloaded provider grid.",
+            ),
         }
         _audit_request("metocean_backtrack", http_request, parameters=request.model_dump())
         return result
@@ -276,7 +323,13 @@ def backtrack_with_real_metocean(request: RealMetOceanBacktrackRequest, http_req
 @app.get("/api/real-data/default-case")
 def get_real_data_default_case():
     """Describe the selected public Sentinel-1 + NOAA AIS alignment case."""
-    return public_case_manifest()
+    result = public_case_manifest()
+    result["data_provenance"] = _provenance(
+        "REAL_ARCHIVED",
+        "HISTORICAL REAL-DATA CASE",
+        "The selected 2020 case aligns archived Sentinel-1 and NOAA AIS data; it is not a live incident or labelled spill dataset.",
+    )
+    return result
 
 
 @app.post("/api/real-data/sentinel/search")
@@ -297,6 +350,7 @@ def search_real_sentinel(request: SentinelSearchRequest, http_request: Request):
             "query": parameters,
             "scenes": scenes,
             "attribution": "Contains modified Copernicus Sentinel data when a selected asset is downloaded or processed.",
+            "data_provenance": REAL_SENTINEL_PROVENANCE,
         }
         save_to_cache(cache_key, result, "sentinel_search")
         _audit_request("sentinel_search", http_request, parameters=parameters, source_url="https://earth-search.aws.element84.com/v1/search")
@@ -315,6 +369,7 @@ def crop_real_sentinel(request: SentinelCropRequest, http_request: Request):
         output_path = str(safe_path_join(REAL_DATA_DIR, f"{safe_scene_name}_crop.tif"))
         result = download_sentinel_crop(request.asset_url, request.bbox, output_path, request.max_pixels)
         result["warning"] = "Real satellite data is investigative input only; validate processing and corroborate any finding before operational interpretation."
+        result["data_provenance"] = REAL_SENTINEL_PROVENANCE
         _audit_request("sentinel_crop", http_request, parameters=request.model_dump(), source_url=request.asset_url, filepath=output_path)
         return result
     except RealDataError as exc:
@@ -341,6 +396,7 @@ def import_noaa_ais(request: NOAAAISImportRequest, http_request: Request):
             request.start_time,
             request.end_time,
         )
+        result["data_provenance"] = REAL_AIS_PROVENANCE
         _audit_request("noaa_ais_import", http_request, parameters=request.model_dump(), source_url=result.get("source_url"), filepath=output_path)
         return result
     except RealDataError as exc:
@@ -380,6 +436,7 @@ def analyze_real_sentinel_crop(request: RealCropAnalysisRequest, http_request: R
             "radar_ships": radar_ships,
             "notice": "Automated detections are probabilistic investigative leads, not proof of an oil spill or vessel responsibility.",
             "attribution": "Contains modified Copernicus Sentinel data (2020).",
+            "data_provenance": REAL_SENTINEL_PROVENANCE,
         }
         _audit_request("sentinel_crop_analysis", http_request, parameters=request.model_dump(), filepath=crop_path)
         return result
@@ -418,6 +475,7 @@ def correlate_noaa_ais(request: NOAAAISCorrelationRequest, http_request: Request
             "origin": {"lat": request.origin_lat, "lng": request.origin_lng, "analyst_supplied": True},
             "matches": [match.model_dump() for match in matches],
             "notice": "Composite scores are probabilistic investigative prioritization only. Validate source data and corroborate before any enforcement decision.",
+            "data_provenance": REAL_AIS_PROVENANCE,
         }
         _audit_request("noaa_ais_correlation", http_request, parameters=request.model_dump(), filepath=csv_path)
         return result
@@ -500,7 +558,8 @@ def get_dark_vessels(scenario_id: str):
         "scenario_id": scenario_id,
         "radar_detections_count": len(radar_ships),
         "dark_vessels_count": sum(1 for t in intel_targets if t["is_dark_vessel"]),
-        "targets": intel_targets
+        "targets": intel_targets,
+        "data_provenance": _scenario_provenance(sc),
     }
 
 @app.post("/api/process_synthetic_geotiff")
@@ -601,15 +660,18 @@ def list_scenarios():
             "primary_verdict": sc.culprits[0].verdict if sc.culprits else "None",
             "primary_culprit": sc.culprits[0].vessel_name if sc.culprits else "None",
             "confidence": sc.culprits[0].composite_score if sc.culprits else 0.0,
-            "is_lookalike": sc.slicks[0].is_lookalike if sc.slicks else False
+            "is_lookalike": sc.slicks[0].is_lookalike if sc.slicks else False,
+            "data_provenance": _scenario_provenance(sc),
         })
     return summary_list
 
-@app.get("/api/scenario/{scenario_id}", response_model=ScenarioData)
+@app.get("/api/scenario/{scenario_id}")
 def get_scenario(scenario_id: str):
     if scenario_id not in SCENARIOS:
         raise HTTPException(status_code=404, detail=f"Scenario '{scenario_id}' not found")
-    return SCENARIOS[scenario_id]
+    result = SCENARIOS[scenario_id].model_dump()
+    result["data_provenance"] = _scenario_provenance(SCENARIOS[scenario_id])
+    return result
 
 @app.get("/api/dossier/{scenario_id}/markdown")
 def get_dossier_markdown(scenario_id: str):
@@ -617,6 +679,7 @@ def get_dossier_markdown(scenario_id: str):
         raise HTTPException(status_code=404, detail=f"Scenario '{scenario_id}' not found")
     scenario = SCENARIOS[scenario_id]
     extra_meta = {
+        "data_provenance": _scenario_provenance(scenario),
         "data_sources": [
             f"SAR: {scenario.sar_image.satellite} ({scenario.sar_image.mode}, {scenario.sar_image.polarization})",
             "AIS: demo/simulated vessel tracks (unless NOAA AIS imported via real-data API)",
@@ -648,6 +711,7 @@ def download_dossier_markdown(scenario_id: str):
         raise HTTPException(status_code=404, detail=f"Scenario '{scenario_id}' not found")
     scenario = SCENARIOS[scenario_id]
     extra_meta = {
+        "data_provenance": _scenario_provenance(scenario),
         "data_sources": [
             f"SAR: {scenario.sar_image.satellite} ({scenario.sar_image.mode}, {scenario.sar_image.polarization})",
             "AIS: demo/simulated unless NOAA AIS imported",
@@ -697,7 +761,8 @@ def get_drift_simulation_steps(scenario_id: str):
     return {
         "scenario_id": scenario_id,
         "elapsed_hours": elapsed_hours,
-        "drift_trajectory": points
+        "drift_trajectory": points,
+        "data_provenance": _scenario_provenance(sc),
     }
 
 @app.get("/api/forward_drift/{scenario_id}")
@@ -723,6 +788,7 @@ def get_forward_drift_forecast(scenario_id: str):
         base_current_deg=sc.environmental.current_direction_deg,
         start_time_iso=sc.sar_image.acquisition_time
     )
+    forecast["data_provenance"] = _scenario_provenance(sc)
     return forecast
 
 @app.get("/api/weathering_simulation/{scenario_id}")
@@ -745,7 +811,8 @@ def get_weathering_timeline(scenario_id: str):
     return {
         "scenario_id": scenario_id,
         "initial_volume_m3": init_vol,
-        "timeline": timeline
+        "timeline": timeline,
+        "data_provenance": _scenario_provenance(sc),
     }
 
 @app.get("/api/behavioral_watchlist/{scenario_id}")
@@ -774,7 +841,8 @@ def get_behavioral_watchlist(scenario_id: str):
         "scenario_id": scenario_id,
         "vessels_scanned_count": len(sc.vessels),
         "watchlist_targets_count": watchlist_count,
-        "profiles": profiles
+        "profiles": profiles,
+        "data_provenance": _scenario_provenance(sc),
     }
 
 @app.get("/api/vessel_profile/{mmsi}")
@@ -816,6 +884,7 @@ def get_intelligence_brief(scenario_id: str):
         raise HTTPException(status_code=404, detail=f"Scenario '{scenario_id}' not found")
     sc = SCENARIOS[scenario_id]
     brief = generate_intelligence_brief(sc)
+    brief["data_provenance"] = _scenario_provenance(sc)
     return brief
 
 # Mount static frontend files if directory exists
