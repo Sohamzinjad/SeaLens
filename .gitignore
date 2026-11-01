@@ -50,3 +50,6 @@ Thumbs.db
 cache/
 audit_logs/
 data_samples/metocean_cache/
+runs/
+evaluation/*.json
+ml_engine/checkpoints/training_config.json

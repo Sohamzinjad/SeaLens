@@ -1,23 +1,22 @@
 {
   "version": "1.0.0",
-  "created_at": "2026-01-01T00:00:00Z",
-  "description": "Dataset manifest for seaLens SAR oil spill detection - PLACEHOLDER",
-  "status": "NOT_POPULATED",
+  "description": "Truthful provenance record for the committed SAR U-Net code and checkpoint",
+  "status": "CHECKPOINT_TRAINING_RUN_NOT_RECORDED",
   "training": {
-    "sources": [],
-    "licenses": [],
-    "sar_images": 0,
-    "oil_spill_examples": 0,
-    "non_spill_examples": 0,
-    "synthetic": true,
-    "note": "Training data details not committed. Must be populated before production use."
+    "sources": ["SyntheticSARDataset in ml_engine/train_sar_unet.py"],
+    "licenses": ["Code-generated synthetic tiles; no external imagery dataset is documented"],
+    "sar_images": "NOT_RECORDED",
+    "oil_spill_examples": "NOT_RECORDED",
+    "non_spill_examples": "NOT_RECORDED",
+    "synthetic": "The committed training entry point generates synthetic Gamma-like clutter and ellipse masks on the fly.",
+    "note": "The exact training run for ml_engine/checkpoints/sar_unet_oil_spill.pt was not recorded. Do not represent the checkpoint as trained or validated on a documented real SAR dataset."
   },
   "splits": {
-    "method": "scene_level_required",
+    "method": "NOT_RECORDED",
     "train": [],
     "val": [],
     "test": [],
-    "leakage_check": "NOT_VERIFIED"
+    "leakage_check": "NOT_VERIFIED; no committed held-out scene split exists"
   },
   "evaluation": {
     "metrics": ["precision", "recall", "f1", "iou", "dice", "fp_rate"],

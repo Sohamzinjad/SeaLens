@@ -1,8 +1,9 @@
-"""
-Dynamic Oceanographic Wind & Current Spatio-Temporal Grid Engine.
+"""Modelled wind/current fallback for the drift engine.
 
-Interpolates 2D/4D gridded atmospheric wind (NOAA GFS / ERA5) and
-ocean surface currents (Copernicus Marine / HYCOM) across geographic space and time.
+This class generates a deterministic tidal and diurnal pattern from supplied
+base vectors. It does not fetch or interpolate NOAA GFS, ERA5, Copernicus
+Marine, or HYCOM grids. ``RealMetOceanGridEngine`` is the separate provider
+adapter for cached external grids; this model remains the offline fallback.
 """
 import math
 import numpy as np
