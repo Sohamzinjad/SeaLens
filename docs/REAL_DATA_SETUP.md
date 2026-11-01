@@ -105,3 +105,14 @@ reproducible SNAP/GPT or equivalent workflow, export a georeferenced single-band
 GeoTIFF, then use `/api/real-data/analyze-crop`. Direct Copernicus Data Space
 credentials are optional and are not stored by SeaLens; this workflow remains
 configuration-ready until the account details are provided.
+
+On this Mac, ESA SNAP GPT was detected at `/Applications/esa-snap/bin/gpt`.
+After downloading a legitimate Sentinel-1 GRD SAFE product, run:
+
+```bash
+scripts/process_sentinel_safe.sh /path/to/S1_product.SAFE data_samples/real_data/processed_vv.tif
+```
+
+The script applies orbit correction, thermal-noise removal, Sigma0 calibration,
+Lee speckle filtering, and terrain correction. It does not download a product,
+claim an oil spill, or replace visual quality assurance.
