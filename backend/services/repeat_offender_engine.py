@@ -3,7 +3,7 @@ Repeat Offender Intelligence Network Service.
 Cross-references vessel MMSIs across multi-incident satellite databases and historical maritime enforcement logs
 to identify serial polluters and escalate legal prosecution priority.
 """
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from backend.models import RepeatOffenderProfile, HistoricalIncident
 
 HISTORICAL_INCIDENTS_DB: Dict[int, List[HistoricalIncident]] = {
