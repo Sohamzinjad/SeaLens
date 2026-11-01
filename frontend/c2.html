@@ -3073,6 +3073,17 @@
     // ────────────────────────────────────────────────────────────
     // 2. BUTTON ACTION: RUN GEOTIFF + CFAR PIPELINE
     // ────────────────────────────────────────────────────────────
+    async function waitForBackgroundJob(jobId, onProgress) {
+      for (let attempt = 0; attempt < 180; attempt += 1) {
+        const job = await fetch(`/api/jobs/${jobId}`).then(r => r.ok ? r.json() : Promise.reject(new Error('Job status unavailable')));
+        if (onProgress) onProgress(job, attempt);
+        if (job.status === 'completed') return job.result;
+        if (job.status === 'failed') throw new Error(job.error || 'Background job failed');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      throw new Error('Background job timed out in the browser; check the job status endpoint.');
+    }
+
     const btnGeoTIFF = document.getElementById('btnGeoTIFF');
 
 
@@ -3097,17 +3108,6 @@
           const j = await r.json(); currentRunId = j.run_id; currentRunManifest = j.manifest;
         }
       } catch(e) { console.log('run capture skip', e); }
-    }
-
-    async function waitForBackgroundJob(jobId, onProgress) {
-      for (let attempt = 0; attempt < 180; attempt += 1) {
-        const job = await fetch(`/api/jobs/${jobId}`).then(r => r.ok ? r.json() : Promise.reject(new Error('Job status unavailable')));
-        if (onProgress) onProgress(job, attempt);
-        if (job.status === 'completed') return job.result;
-        if (job.status === 'failed') throw new Error(job.error || 'Background job failed');
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-      throw new Error('Background job timed out in the browser; check the job status endpoint.');
     }
 
     async function waitForBackgroundJob(jobId, onProgress) {
