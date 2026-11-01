@@ -40,7 +40,7 @@ validation remain necessary before operational interpretation.
 
 Show this credit wherever a derived SAR image is displayed:
 
-> Contains modified Copernicus Sentinel data (2024).
+> Contains modified Copernicus Sentinel data (2020).
 
 For the vessel records, credit **NOAA/BOEM MarineCadastre AIS**. NOAA's archive
 is intended for coastal and ocean planning and is sampled at one-minute intervals;
@@ -85,3 +85,23 @@ archive. Configure a Copernicus historical/reanalysis dataset through
 cover a step, seaLens keeps the existing modelled grid as a visibly-labelled
 offline fallback. Cached grids are stored locally under
 `data_samples/metocean_cache/` and are ignored by Git.
+
+## Long-running imports
+
+For browser clients, set `background: true` in Sentinel crop or NOAA AIS
+import requests. The API returns HTTP 202 and a `job_id`; poll
+`GET /api/jobs/{job_id}` until `status` is `completed` or `failed`. This local
+queue keeps the demo server responsive, but is intentionally not a durable
+production queue. Use a managed worker system before a multi-user deployment.
+
+## Raw GRD / SAFE workflow
+
+The crop endpoint deliberately accepts only analysis-ready RTC COGs. A raw GRD
+measurement TIFF alone is not accepted because it lacks the complete SAFE
+annotation/calibration context needed for reliable geographic analysis. For a
+raw CDSE product, download the whole SAFE package, retain its manifest and
+annotation files, apply radiometric calibration and terrain correction with a
+reproducible SNAP/GPT or equivalent workflow, export a georeferenced single-band
+GeoTIFF, then use `/api/real-data/analyze-crop`. Direct Copernicus Data Space
+credentials are optional and are not stored by SeaLens; this workflow remains
+configuration-ready until the account details are provided.

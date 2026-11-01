@@ -4,6 +4,8 @@ FastAPI Main Application and REST API Endpoints.
 """
 import os
 from datetime import datetime
+from collections import defaultdict, deque
+from time import monotonic
 try:
     from dotenv import load_dotenv
     load_dotenv()
@@ -47,7 +49,9 @@ from backend.services.real_data_service import (
 )
 from backend.audit_logger import compute_file_hash, log_audit_event
 from backend.cache_manager import get_cache_key, get_cached, save_to_cache
+from backend.job_manager import job_manager
 from backend.security_utils import safe_path_join, validate_bbox, validate_date, validate_filename, validate_source_url
+from backend.storage import storage_status
 from ml_engine.sar_detector import SAROilSpillDetector
 from ml_engine.geotiff_processor import GeoTIFFProcessor
 from ml_engine.cfar_ship_detector import CACFARShipDetector
@@ -85,6 +89,31 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+_request_window: Dict[str, deque[float]] = defaultdict(deque)
+
+
+@app.middleware("http")
+async def security_and_rate_limit(request: Request, call_next):
+    """Small safe default for the local API; enable API key enforcement via env."""
+    if request.url.path.startswith("/api/"):
+        client = request.client.host if request.client else "unknown"
+        now = monotonic()
+        history = _request_window[client]
+        while history and now - history[0] > 60:
+            history.popleft()
+        if len(history) >= int(os.getenv("SEALENS_RATE_LIMIT_PER_MINUTE", "120")):
+            return JSONResponse(status_code=429, content={"detail": "Rate limit exceeded; try again shortly."})
+        history.append(now)
+        api_key = os.getenv("SEALENS_API_KEY")
+        if api_key and request.url.path not in {"/api/health"}:
+            if request.headers.get("X-SeaLens-API-Key") != api_key:
+                return JSONResponse(status_code=401, content={"detail": "A valid SeaLens API key is required."})
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "same-origin"
+    return response
 
 drift_engine = DriftEngine()
 correlation_engine = AISCorrelationEngine()
@@ -162,6 +191,7 @@ class SentinelCropRequest(BaseModel):
     asset_url: str
     bbox: List[float] = Field(default_factory=lambda: list(US_GULF_RTC_2020.bbox), min_length=4, max_length=4)
     max_pixels: int = Field(default=2048, ge=128, le=4096)
+    background: bool = False
 
 
 class NOAAAISImportRequest(BaseModel):
@@ -172,6 +202,7 @@ class NOAAAISImportRequest(BaseModel):
     end_time: str = US_GULF_RTC_2020.acquisition_end
     # Acknowledge the national archive is large before the server starts a fetch.
     allow_large_download: bool = False
+    background: bool = False
 
 
 class RealCropAnalysisRequest(BaseModel):
@@ -209,7 +240,20 @@ class RealMetOceanBacktrackRequest(MetOceanPrepareRequest):
 
 @app.get("/api/health")
 def health_check():
-    return {"status": "operational", "system": "seaLens C2 Engine", "unet_loaded": os.path.exists(checkpoint_path), "timestamp": datetime.utcnow().isoformat() + "Z"}
+    return {"status": "operational", "system": "seaLens C2 Engine", "unet_loaded": os.path.exists(checkpoint_path), "storage": storage_status(), "timestamp": datetime.utcnow().isoformat() + "Z"}
+
+
+@app.get("/api/jobs/{job_id}")
+def get_job(job_id: str):
+    try:
+        return job_manager.public(job_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Job not found") from exc
+
+
+@app.get("/api/storage/status")
+def get_storage_status():
+    return storage_status()
 
 
 @app.get("/health", response_class=HTMLResponse)
@@ -367,11 +411,15 @@ def crop_real_sentinel(request: SentinelCropRequest, http_request: Request):
         validate_source_url(request.asset_url)
         safe_scene_name = validate_filename(os.path.basename(request.asset_url)).replace(".tiff", "").replace(".tif", "")
         output_path = str(safe_path_join(REAL_DATA_DIR, f"{safe_scene_name}_crop.tif"))
-        result = download_sentinel_crop(request.asset_url, request.bbox, output_path, request.max_pixels)
-        result["warning"] = "Real satellite data is investigative input only; validate processing and corroborate any finding before operational interpretation."
-        result["data_provenance"] = REAL_SENTINEL_PROVENANCE
-        _audit_request("sentinel_crop", http_request, parameters=request.model_dump(), source_url=request.asset_url, filepath=output_path)
-        return result
+        def crop_task() -> Dict[str, Any]:
+            result = download_sentinel_crop(request.asset_url, request.bbox, output_path, request.max_pixels)
+            result["warning"] = "Real satellite data is investigative input only; validate processing and corroborate any finding before operational interpretation."
+            result["data_provenance"] = REAL_SENTINEL_PROVENANCE
+            _audit_request("sentinel_crop", http_request, parameters=request.model_dump(), source_url=request.asset_url, filepath=output_path)
+            return result
+        if request.background:
+            return JSONResponse(status_code=202, content=job_manager.submit("sentinel_crop", crop_task))
+        return crop_task()
     except RealDataError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -388,17 +436,17 @@ def import_noaa_ais(request: NOAAAISImportRequest, http_request: Request):
         validate_bbox(request.bbox)
         _validate_time_range(request.start_time, request.end_time, "AIS import")
         output_path = str(safe_path_join(REAL_DATA_DIR, f"noaa_ais_{validate_date(request.day)}_subset.csv"))
-        result = download_noaa_ais_subset(
-            request.day,
-            request.bbox,
-            output_path,
-            request.max_records,
-            request.start_time,
-            request.end_time,
-        )
-        result["data_provenance"] = REAL_AIS_PROVENANCE
-        _audit_request("noaa_ais_import", http_request, parameters=request.model_dump(), source_url=result.get("source_url"), filepath=output_path)
-        return result
+        def import_task() -> Dict[str, Any]:
+            result = download_noaa_ais_subset(
+                request.day, request.bbox, output_path, request.max_records,
+                request.start_time, request.end_time,
+            )
+            result["data_provenance"] = REAL_AIS_PROVENANCE
+            _audit_request("noaa_ais_import", http_request, parameters=request.model_dump(), source_url=result.get("source_url"), filepath=output_path)
+            return result
+        if request.background:
+            return JSONResponse(status_code=202, content=job_manager.submit("noaa_ais_import", import_task))
+        return import_task()
     except RealDataError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

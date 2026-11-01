@@ -294,7 +294,11 @@ class RealMetOceanGridEngine:
                 variables=["uo", "vo"],
                 minimum_longitude=west, maximum_longitude=east,
                 minimum_latitude=south, maximum_latitude=north,
-                minimum_depth=0, maximum_depth=0,
+                # The operational global product's shallowest centre is about
+                # 0.5 m, not an exact 0 m coordinate.  Request that surface
+                # layer rather than an invalid zero-depth slice.
+                minimum_depth=0.49402499198913574,
+                maximum_depth=0.49402499198913574,
                 start_datetime=(when - timedelta(hours=max(0.0, history_hours))).isoformat(),
                 end_datetime=(when + timedelta(hours=max(0.0, forecast_hours))).isoformat(),
                 output_directory=str(incident_dir),

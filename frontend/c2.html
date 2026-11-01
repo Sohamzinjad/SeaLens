@@ -3099,6 +3099,28 @@
       } catch(e) { console.log('run capture skip', e); }
     }
 
+    async function waitForBackgroundJob(jobId, onProgress) {
+      for (let attempt = 0; attempt < 180; attempt += 1) {
+        const job = await fetch(`/api/jobs/${jobId}`).then(r => r.ok ? r.json() : Promise.reject(new Error('Job status unavailable')));
+        if (onProgress) onProgress(job, attempt);
+        if (job.status === 'completed') return job.result;
+        if (job.status === 'failed') throw new Error(job.error || 'Background job failed');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      throw new Error('Background job timed out in the browser; check the job status endpoint.');
+    }
+
+    async function waitForBackgroundJob(jobId, onProgress) {
+      for (let attempt = 0; attempt < 180; attempt += 1) {
+        const job = await fetch(`/api/jobs/${jobId}`).then(r => r.ok ? r.json() : Promise.reject(new Error('Job status unavailable')));
+        if (onProgress) onProgress(job, attempt);
+        if (job.status === 'completed') return job.result;
+        if (job.status === 'failed') throw new Error(job.error || 'Background job failed');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      throw new Error('Background job timed out in the browser; check the job status endpoint.');
+    }
+
     const btnRealData = document.getElementById('btnRealData');
     const btnNOAAAIS = document.getElementById('btnNOAAAIS');
     const radarHud = document.getElementById('radarHudOverlay');
@@ -3128,10 +3150,11 @@
         if (radarSubtitle) radarSubtitle.textContent = 'Texas Gulf Coast · real satellite input · no synthetic fallback';
         const crop = await fetch('/api/real-data/sentinel/crop', {
           method: 'POST', headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({asset_url: manifest.recommended_asset, bbox: manifest.case.bbox, max_pixels: 1024})
-        }).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(new Error(e.detail || 'Crop request failed'))));
+          body: JSON.stringify({asset_url: manifest.recommended_asset, bbox: manifest.case.bbox, max_pixels: 1024, background: true})
+        }).then(r => r.status === 202 ? r.json() : r.json().then(e => Promise.reject(new Error(e.detail || 'Crop job request failed'))));
+        const cropResult = await waitForBackgroundJob(crop.job_id);
         if (radarTitle) radarTitle.textContent = 'RUNNING U-NET + CA-CFAR ON REAL SAR…';
-        const filename = crop.output_path.split('/').pop();
+        const filename = cropResult.output_path.split('/').pop();
         const result = await fetch('/api/real-data/analyze-crop', {
           method: 'POST', headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({filename})
@@ -3187,9 +3210,13 @@
         const endTime = document.getElementById('realEndTime').value ? document.getElementById('realEndTime').value + ':00Z' : manifest.case.acquisition_end;
         const subset = await fetch('/api/real-data/noaa-ais/import', {
           method: 'POST', headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({day, bbox, start_time: startTime, end_time: endTime, allow_large_download: true})
-        }).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(new Error(e.detail || 'AIS import failed'))));
-        const filename = subset.output_path.split('/').pop();
+          body: JSON.stringify({day, bbox, start_time: startTime, end_time: endTime, allow_large_download: true, background: true})
+        }).then(r => r.status === 202 ? r.json() : r.json().then(e => Promise.reject(new Error(e.detail || 'AIS import job request failed'))));
+        const subsetResult = await waitForBackgroundJob(subset.job_id, (job, attempt) => {
+          if (progBar) progBar.style.width = `${Math.min(90, 15 + attempt)}%`;
+          if (progText) progText.textContent = job.status === 'running' ? 'Filtering public NOAA archive in background…' : 'Queued for import…';
+        });
+        const filename = subsetResult.output_path.split('/').pop();
         const centerLng = (bbox[0] + bbox[2]) / 2;
         const centerLat = (bbox[1] + bbox[3]) / 2;
         const correlation = await fetch('/api/real-data/noaa-ais/correlate', {
@@ -3202,7 +3229,7 @@
         if (statusEl) { statusEl.className = 'source-badge real'; statusEl.textContent = 'Imported & correlated'; }
         if (resultsEl) {
           resultsEl.classList.remove('hidden');
-          resultsEl.innerHTML = `<div>Records kept: <b>${subset.records_kept}</b></div><div>Vessels normalized: <b>${correlation.vessels_loaded}</b></div><div>Ranked candidates: <b>${correlation.matches.length}</b></div>`;
+          resultsEl.innerHTML = `<div>Records kept: <b>${subsetResult.records_kept}</b></div><div>Vessels normalized: <b>${correlation.vessels_loaded}</b></div><div>Ranked candidates: <b>${correlation.matches.length}</b></div>`;
         }
         // Show on map if possible
         if (map && map.getSource('vessels-src') && correlation.matches) {
@@ -3215,7 +3242,7 @@
         }
         if (document.getElementById('noaaProgressBar')) document.getElementById('noaaProgressBar').style.width = '100%';
         if (document.getElementById('noaaProgressText')) document.getElementById('noaaProgressText').textContent = 'Complete';
-        alert(`NOAA AIS complete.\n\nRecords kept: ${subset.records_kept}\nVessels normalized: ${correlation.vessels_loaded}\nRanked candidate tracks: ${correlation.matches.length}\n\nThe resulting scores are investigative leads, not proof of responsibility.`);
+        alert(`NOAA AIS complete.\n\nRecords kept: ${subsetResult.records_kept}\nVessels normalized: ${correlation.vessels_loaded}\nRanked candidate tracks: ${correlation.matches.length}\n\nThe resulting scores are investigative leads, not proof of responsibility.`);
       } catch (error) {
         if (document.getElementById('noaaProgressText')) document.getElementById('noaaProgressText').textContent = 'Failed';
         alert(`NOAA AIS import could not complete: ${error.message || error}\n\nNo verified real-data offline package is installed; use a labelled simulated scenario if the network is unavailable.`);
@@ -7411,10 +7438,11 @@
         if (radarSubtitle) radarSubtitle.textContent = 'Texas Gulf Coast · real satellite input · no synthetic fallback';
         const crop = await fetch('/api/real-data/sentinel/crop', {
           method: 'POST', headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({asset_url: manifest.recommended_asset, bbox: manifest.case.bbox, max_pixels: 1024})
-        }).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(new Error(e.detail || 'Crop request failed'))));
+          body: JSON.stringify({asset_url: manifest.recommended_asset, bbox: manifest.case.bbox, max_pixels: 1024, background: true})
+        }).then(r => r.status === 202 ? r.json() : r.json().then(e => Promise.reject(new Error(e.detail || 'Crop job request failed'))));
+        const cropResult = await waitForBackgroundJob(crop.job_id);
         if (radarTitle) radarTitle.textContent = 'RUNNING U-NET + CA-CFAR ON REAL SAR…';
-        const filename = crop.output_path.split('/').pop();
+        const filename = cropResult.output_path.split('/').pop();
         const result = await fetch('/api/real-data/analyze-crop', {
           method: 'POST', headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({filename})
@@ -7470,9 +7498,13 @@
         const endTime = document.getElementById('realEndTime').value ? document.getElementById('realEndTime').value + ':00Z' : manifest.case.acquisition_end;
         const subset = await fetch('/api/real-data/noaa-ais/import', {
           method: 'POST', headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({day, bbox, start_time: startTime, end_time: endTime, allow_large_download: true})
-        }).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(new Error(e.detail || 'AIS import failed'))));
-        const filename = subset.output_path.split('/').pop();
+          body: JSON.stringify({day, bbox, start_time: startTime, end_time: endTime, allow_large_download: true, background: true})
+        }).then(r => r.status === 202 ? r.json() : r.json().then(e => Promise.reject(new Error(e.detail || 'AIS import job request failed'))));
+        const subsetResult = await waitForBackgroundJob(subset.job_id, (job, attempt) => {
+          if (progBar) progBar.style.width = `${Math.min(90, 15 + attempt)}%`;
+          if (progText) progText.textContent = job.status === 'running' ? 'Filtering public NOAA archive in background…' : 'Queued for import…';
+        });
+        const filename = subsetResult.output_path.split('/').pop();
         const centerLng = (bbox[0] + bbox[2]) / 2;
         const centerLat = (bbox[1] + bbox[3]) / 2;
         const correlation = await fetch('/api/real-data/noaa-ais/correlate', {
@@ -7485,7 +7517,7 @@
         if (statusEl) { statusEl.className = 'source-badge real'; statusEl.textContent = 'Imported & correlated'; }
         if (resultsEl) {
           resultsEl.classList.remove('hidden');
-          resultsEl.innerHTML = `<div>Records kept: <b>${subset.records_kept}</b></div><div>Vessels normalized: <b>${correlation.vessels_loaded}</b></div><div>Ranked candidates: <b>${correlation.matches.length}</b></div>`;
+          resultsEl.innerHTML = `<div>Records kept: <b>${subsetResult.records_kept}</b></div><div>Vessels normalized: <b>${correlation.vessels_loaded}</b></div><div>Ranked candidates: <b>${correlation.matches.length}</b></div>`;
         }
         // Show on map if possible
         if (map && map.getSource('vessels-src') && correlation.matches) {
@@ -7498,7 +7530,7 @@
         }
         if (document.getElementById('noaaProgressBar')) document.getElementById('noaaProgressBar').style.width = '100%';
         if (document.getElementById('noaaProgressText')) document.getElementById('noaaProgressText').textContent = 'Complete';
-        alert(`NOAA AIS complete.\n\nRecords kept: ${subset.records_kept}\nVessels normalized: ${correlation.vessels_loaded}\nRanked candidate tracks: ${correlation.matches.length}\n\nThe resulting scores are investigative leads, not proof of responsibility.`);
+        alert(`NOAA AIS complete.\n\nRecords kept: ${subsetResult.records_kept}\nVessels normalized: ${correlation.vessels_loaded}\nRanked candidate tracks: ${correlation.matches.length}\n\nThe resulting scores are investigative leads, not proof of responsibility.`);
       } catch (error) {
         if (document.getElementById('noaaProgressText')) document.getElementById('noaaProgressText').textContent = 'Failed';
         alert(`NOAA AIS import could not complete: ${error.message || error}\n\nNo verified real-data offline package is installed; use a labelled simulated scenario if the network is unavailable.`);

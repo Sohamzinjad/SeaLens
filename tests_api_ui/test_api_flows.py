@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 from pathlib import Path
 from fastapi.testclient import TestClient
 
@@ -67,3 +68,27 @@ def test_real_data_search_uses_cache_and_audit(monkeypatch):
     assert list(Path("audit_logs").glob("audit_*.jsonl"))
     # The request must not create an arbitrary cache filename.
     assert all(path.name.startswith("sentinel_search_") for path in CACHE_DIR.glob("sentinel_search_*.json"))
+
+
+def test_background_crop_job_is_pollable(monkeypatch):
+    import backend.main as main
+
+    monkeypatch.setattr(main, "download_sentinel_crop", lambda *args, **kwargs: {
+        "output_path": "data_samples/real_data/test_crop.tif",
+        "analysis_ready_rtc": True,
+    })
+    response = client.post("/api/real-data/sentinel/crop", json={
+        "asset_url": "https://sentinel-s1-rtc-indigo.s3.us-west-2.amazonaws.com/test.tif",
+        "bbox": [-95.05, 28.83, -94.69, 29.81],
+        "background": True,
+    })
+    assert response.status_code == 202
+    job_id = response.json()["job_id"]
+    for _ in range(20):
+        status = client.get(f"/api/jobs/{job_id}")
+        assert status.status_code == 200
+        if status.json()["status"] != "queued" and status.json()["status"] != "running":
+            break
+        time.sleep(0.01)
+    assert status.json()["status"] == "completed"
+    assert status.json()["result"]["data_provenance"]["classification"] == "REAL_ARCHIVED"
