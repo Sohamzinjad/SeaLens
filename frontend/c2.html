@@ -3232,6 +3232,128 @@
       }
     });
 
+    function setSourceBadge(id, kind, text) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.className = `source-badge ${kind}`;
+      if (text) el.textContent = text;
+    }
+
+    const btnCheckMetocean = document.getElementById('btnCheckMetocean');
+    const btnGfsBacktrack = document.getElementById('btnGfsBacktrack');
+    const metoceanStatus = document.getElementById('metoceanStatus');
+
+    if (btnCheckMetocean) {
+      btnCheckMetocean.addEventListener('click', async () => {
+        const orig = btnCheckMetocean.innerHTML;
+        btnCheckMetocean.innerHTML = '<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>Checking Providers…</span>';
+        btnCheckMetocean.disabled = true;
+        lucide.createIcons();
+        try {
+          const res = await fetch('/api/real-data/metocean/status');
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          const copernicusConfigured = Boolean(data.copernicus_currents?.credentials_configured);
+          setSourceBadge('srcCopernicus', copernicusConfigured ? 'real' : 'fallback', copernicusConfigured ? 'configured (CMEMS)' : 'offline fallback');
+          setSourceBadge('srcGfs', 'real', 'NOAA GFS (0.25°)');
+          if (metoceanStatus) {
+            metoceanStatus.classList.remove('hidden');
+            metoceanStatus.innerHTML = `
+              <div class="font-bold text-emerald-800 pb-0.5">Metocean Providers:</div>
+              <div>• <b>GFS Wind:</b> NOAA NOMADS 0.25° (live/forecast window)</div>
+              <div>• <b>Copernicus Currents:</b> ${copernicusConfigured ? '✅ Credentials configured' : '⚠️ Unconfigured (using modelled fallback)'}</div>
+              <div>• <b>Offline Fallback:</b> DynamicOceanGridEngine (ready)</div>
+            `;
+          }
+          if (typeof showToast === 'function') showToast('Metocean status updated', 'success');
+        } catch (err) {
+          if (metoceanStatus) {
+            metoceanStatus.classList.remove('hidden');
+            metoceanStatus.innerHTML = `<span class="text-rose-600 font-bold">Provider check failed: ${err.message}</span>`;
+          }
+          if (typeof showToast === 'function') showToast('Status check failed', 'error');
+        } finally {
+          btnCheckMetocean.disabled = false;
+          btnCheckMetocean.innerHTML = orig;
+          lucide.createIcons();
+        }
+      });
+    }
+
+    if (btnGfsBacktrack) {
+      btnGfsBacktrack.addEventListener('click', async () => {
+        const orig = btnGfsBacktrack.innerHTML;
+        btnGfsBacktrack.innerHTML = '<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>Backtracking Origin…</span>';
+        btnGfsBacktrack.disabled = true;
+        lucide.createIcons();
+        try {
+          const cLng = currentScenarioData?.drift_origin_cone?.properties?.origin_lng || (typeof lastGeoTIFFCenter !== 'undefined' ? lastGeoTIFFCenter[0] : 103.85);
+          const cLat = currentScenarioData?.drift_origin_cone?.properties?.origin_lat || (typeof lastGeoTIFFCenter !== 'undefined' ? lastGeoTIFFCenter[1] : 1.24);
+          const bbox = [cLng - 0.4, cLat - 0.4, cLng + 0.4, cLat + 0.4];
+          const timestamp = currentScenarioData?.timestamp || new Date().toISOString();
+
+          const res = await fetch('/api/real-data/metocean/backtrack', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+              incident_id: currentScenarioData?.id || 'active-incident',
+              bbox: bbox,
+              detection_timestamp: timestamp,
+              detection_lat: cLat,
+              detection_lng: cLng,
+              elapsed_hours: 6.0,
+              fallback_wind_speed_ms: currentScenarioData?.environmental?.wind_speed_ms || 7.5,
+              fallback_wind_from_deg: currentScenarioData?.environmental?.wind_direction_deg || 50.0,
+              fallback_current_speed_ms: currentScenarioData?.environmental?.current_speed_ms || 0.35,
+              fallback_current_to_deg: currentScenarioData?.environmental?.current_direction_deg || 120.0
+            })
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || `HTTP ${res.status}`);
+          }
+          const data = await res.json();
+          if (metoceanStatus) {
+            metoceanStatus.classList.remove('hidden');
+            const warnings = (data.cache?.warnings && data.cache.warnings.length) 
+              ? `<div class="text-amber-800/90 text-[8px] mt-1 border-t border-amber-200/50 pt-1">⚠️ ${data.cache.warnings.join('<br>')}</div>` 
+              : '';
+            metoceanStatus.innerHTML = `
+              <div class="font-bold text-emerald-800 pb-0.5">Backtrack Origin Derived:</div>
+              <div>• <b>Derived Origin:</b> ${data.derived_origin.lat.toFixed(4)}°N, ${data.derived_origin.lng.toFixed(4)}°E</div>
+              <div>• <b>Wind Source:</b> ${data.metocean_at_detection?.wind_source || data.cache?.wind_source}</div>
+              <div>• <b>Current Source:</b> ${data.metocean_at_detection?.current_source || data.cache?.current_source}</div>
+              ${warnings}
+            `;
+          }
+          if (data.origin_cone && map && map.getSource('drift-cone-src')) {
+            map.getSource('drift-cone-src').setData({
+              type: 'FeatureCollection',
+              features: [data.origin_cone]
+            });
+          }
+          if (map) {
+            map.flyTo({
+              center: [data.derived_origin.lng, data.derived_origin.lat],
+              zoom: 11,
+              duration: 1000
+            });
+          }
+          if (typeof showToast === 'function') showToast('Backtracking calculation complete', 'success');
+        } catch (err) {
+          if (metoceanStatus) {
+            metoceanStatus.classList.remove('hidden');
+            metoceanStatus.innerHTML = `<span class="text-rose-600 font-bold">Backtrack failed: ${err.message}</span>`;
+          }
+          if (typeof showToast === 'function') showToast('Backtracking failed: ' + err.message, 'error');
+        } finally {
+          btnGfsBacktrack.disabled = false;
+          btnGfsBacktrack.innerHTML = orig;
+          lucide.createIcons();
+        }
+      });
+    }
+
     if (btnCloseGeoTIFFModal) {
       btnCloseGeoTIFFModal.addEventListener('click', () => {
         geotiffResultsModal.classList.add('hidden');
@@ -7392,6 +7514,128 @@
         }, 4000);
       }
     });
+
+    function setSourceBadge(id, kind, text) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.className = `source-badge ${kind}`;
+      if (text) el.textContent = text;
+    }
+
+    const btnCheckMetocean = document.getElementById('btnCheckMetocean');
+    const btnGfsBacktrack = document.getElementById('btnGfsBacktrack');
+    const metoceanStatus = document.getElementById('metoceanStatus');
+
+    if (btnCheckMetocean) {
+      btnCheckMetocean.addEventListener('click', async () => {
+        const orig = btnCheckMetocean.innerHTML;
+        btnCheckMetocean.innerHTML = '<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>Checking Providers…</span>';
+        btnCheckMetocean.disabled = true;
+        lucide.createIcons();
+        try {
+          const res = await fetch('/api/real-data/metocean/status');
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          const copernicusConfigured = Boolean(data.copernicus_currents?.credentials_configured);
+          setSourceBadge('srcCopernicus', copernicusConfigured ? 'real' : 'fallback', copernicusConfigured ? 'configured (CMEMS)' : 'offline fallback');
+          setSourceBadge('srcGfs', 'real', 'NOAA GFS (0.25°)');
+          if (metoceanStatus) {
+            metoceanStatus.classList.remove('hidden');
+            metoceanStatus.innerHTML = `
+              <div class="font-bold text-emerald-800 pb-0.5">Metocean Providers:</div>
+              <div>• <b>GFS Wind:</b> NOAA NOMADS 0.25° (live/forecast window)</div>
+              <div>• <b>Copernicus Currents:</b> ${copernicusConfigured ? '✅ Credentials configured' : '⚠️ Unconfigured (using modelled fallback)'}</div>
+              <div>• <b>Offline Fallback:</b> DynamicOceanGridEngine (ready)</div>
+            `;
+          }
+          if (typeof showToast === 'function') showToast('Metocean status updated', 'success');
+        } catch (err) {
+          if (metoceanStatus) {
+            metoceanStatus.classList.remove('hidden');
+            metoceanStatus.innerHTML = `<span class="text-rose-600 font-bold">Provider check failed: ${err.message}</span>`;
+          }
+          if (typeof showToast === 'function') showToast('Status check failed', 'error');
+        } finally {
+          btnCheckMetocean.disabled = false;
+          btnCheckMetocean.innerHTML = orig;
+          lucide.createIcons();
+        }
+      });
+    }
+
+    if (btnGfsBacktrack) {
+      btnGfsBacktrack.addEventListener('click', async () => {
+        const orig = btnGfsBacktrack.innerHTML;
+        btnGfsBacktrack.innerHTML = '<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>Backtracking Origin…</span>';
+        btnGfsBacktrack.disabled = true;
+        lucide.createIcons();
+        try {
+          const cLng = currentScenarioData?.drift_origin_cone?.properties?.origin_lng || (typeof lastGeoTIFFCenter !== 'undefined' ? lastGeoTIFFCenter[0] : 103.85);
+          const cLat = currentScenarioData?.drift_origin_cone?.properties?.origin_lat || (typeof lastGeoTIFFCenter !== 'undefined' ? lastGeoTIFFCenter[1] : 1.24);
+          const bbox = [cLng - 0.4, cLat - 0.4, cLng + 0.4, cLat + 0.4];
+          const timestamp = currentScenarioData?.timestamp || new Date().toISOString();
+
+          const res = await fetch('/api/real-data/metocean/backtrack', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+              incident_id: currentScenarioData?.id || 'active-incident',
+              bbox: bbox,
+              detection_timestamp: timestamp,
+              detection_lat: cLat,
+              detection_lng: cLng,
+              elapsed_hours: 6.0,
+              fallback_wind_speed_ms: currentScenarioData?.environmental?.wind_speed_ms || 7.5,
+              fallback_wind_from_deg: currentScenarioData?.environmental?.wind_direction_deg || 50.0,
+              fallback_current_speed_ms: currentScenarioData?.environmental?.current_speed_ms || 0.35,
+              fallback_current_to_deg: currentScenarioData?.environmental?.current_direction_deg || 120.0
+            })
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || `HTTP ${res.status}`);
+          }
+          const data = await res.json();
+          if (metoceanStatus) {
+            metoceanStatus.classList.remove('hidden');
+            const warnings = (data.cache?.warnings && data.cache.warnings.length) 
+              ? `<div class="text-amber-800/90 text-[8px] mt-1 border-t border-amber-200/50 pt-1">⚠️ ${data.cache.warnings.join('<br>')}</div>` 
+              : '';
+            metoceanStatus.innerHTML = `
+              <div class="font-bold text-emerald-800 pb-0.5">Backtrack Origin Derived:</div>
+              <div>• <b>Derived Origin:</b> ${data.derived_origin.lat.toFixed(4)}°N, ${data.derived_origin.lng.toFixed(4)}°E</div>
+              <div>• <b>Wind Source:</b> ${data.metocean_at_detection?.wind_source || data.cache?.wind_source}</div>
+              <div>• <b>Current Source:</b> ${data.metocean_at_detection?.current_source || data.cache?.current_source}</div>
+              ${warnings}
+            `;
+          }
+          if (data.origin_cone && map && map.getSource('drift-cone-src')) {
+            map.getSource('drift-cone-src').setData({
+              type: 'FeatureCollection',
+              features: [data.origin_cone]
+            });
+          }
+          if (map) {
+            map.flyTo({
+              center: [data.derived_origin.lng, data.derived_origin.lat],
+              zoom: 11,
+              duration: 1000
+            });
+          }
+          if (typeof showToast === 'function') showToast('Backtracking calculation complete', 'success');
+        } catch (err) {
+          if (metoceanStatus) {
+            metoceanStatus.classList.remove('hidden');
+            metoceanStatus.innerHTML = `<span class="text-rose-600 font-bold">Backtrack failed: ${err.message}</span>`;
+          }
+          if (typeof showToast === 'function') showToast('Backtracking failed: ' + err.message, 'error');
+        } finally {
+          btnGfsBacktrack.disabled = false;
+          btnGfsBacktrack.innerHTML = orig;
+          lucide.createIcons();
+        }
+      });
+    }
 
     if (btnCloseGeoTIFFModal) {
       btnCloseGeoTIFFModal.addEventListener('click', () => {

@@ -4,6 +4,17 @@ FastAPI Main Application and REST API Endpoints.
 """
 import os
 from datetime import datetime
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except Exception:
+    if os.path.exists(".env"):
+        with open(".env") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    os.environ.setdefault(k.strip(), v.strip())
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse, JSONResponse, Response, FileResponse
@@ -180,6 +191,7 @@ def health_page():
 
 
 @app.get("/api/real-data/metocean/status")
+@app.get("/api/real-data/metocean/providers")
 def metocean_status():
     """Show exactly which real met-ocean providers are available locally."""
     return real_metocean_grid_engine.provider_status()

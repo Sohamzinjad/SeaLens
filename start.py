@@ -58,10 +58,23 @@ def check_env():
     print("\n🔐 Configuration...")
     if os.path.exists(".env"):
         print("  ✅ .env file found")
+        try:
+            from dotenv import load_dotenv
+            load_dotenv()
+        except Exception:
+            with open(".env") as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        k, v = line.split("=", 1)
+                        os.environ.setdefault(k.strip(), v.strip())
     else:
         print("  ⚠️  .env not found (copy .env.example to .env)")
-    # Check no hardcoded secrets
-    print("  ✅ Using .env.example for credentials (no secrets in repo)")
+
+    if os.getenv("COPERNICUSMARINE_SERVICE_USERNAME") and os.getenv("COPERNICUSMARINE_SERVICE_PASSWORD"):
+        print(f"  🌊 Copernicus Marine Service: Configured ({os.getenv('COPERNICUSMARINE_SERVICE_USERNAME')})")
+    else:
+        print("  🌊 Copernicus Marine Service: Not configured (will use modelled drift fallback)")
 
 
 def main():
