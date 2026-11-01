@@ -62,3 +62,16 @@ git rm [explicit verified generated/unused targets]
 .venv/bin/python -m pytest tests tests_api_ui -q
 cd frontend && npm run build
 ```
+
+## Phase 3 — Public-data verification and offline-package removal
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Sentinel-1 scene search | PASS | `POST /api/real-data/sentinel/search` returned HTTP 200 and an archived 2020 Sentinel-1 scene for the default Texas Gulf case. |
+| Sentinel-1 RTC crop | PASS | `POST /api/real-data/sentinel/crop` returned HTTP 200 for the selected public RTC asset. The local crop is 506 x 202, EPSG:4326, 293 KB, SHA-256 `606c3130f50ec37424cdd618de6914ad38c8514990916e6b414fb960c7f1365f`. |
+| NOAA AIS import/correlation | NOT VERIFIED | The public daily archive did not complete before its 180-second safe client timeout. No records, correlation, or match is reported as verified. The blocked synchronous import also showed that a background-job implementation is required before production use. |
+| Copernicus Marine currents | NOT CONFIGURED | `/api/real-data/metocean/status` reported `credentials_configured: false`. |
+| Historical GFS wind | FALLBACK ONLY | The default 2020 case is outside the operational GFS forecast window; it must remain labelled modelled fallback unless an archival source is added. |
+| Offline package claims | REMOVED | Removed `data_samples/real_data/offline_demo/` and `scripts/package_offline_demo.sh`; UI and documentation now state that no verified real-data offline package is shipped. |
+
+The exact public-source URLs, classifications, crop hash, and processing limitations are in `docs/DATA_PROVENANCE.md`. The server was restarted after the stalled AIS request so the remaining API checks could continue.

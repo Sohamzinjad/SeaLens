@@ -12,7 +12,7 @@ python3 start.py  # http://localhost:8000, /c2, /docs, /health
 - SAR detection (U-Net/CFAR), look-alike rejection
 - Reverse/backtrack drift with uncertainty cones, GFS/Copernicus provenance
 - AIS correlation, dark vessel detection, repeat offenders
-- Real Data Mode, offline demo package
+- Real Data Mode and clearly labelled simulated scenarios for network-free demonstrations
 - Forensic dossier with sources/timestamps/cache/uncertainty
 - Guided demo flow with toasts, reset, URL auto-demoing
 

@@ -5,7 +5,7 @@
 - [ ] Run `./scripts/smoke_test.sh` to verify endpoints
 - [ ] Open http://localhost:8000/c2
 - [ ] Check health page at http://localhost:8000/health
-- [ ] Verify offline assets in `data_samples/real_data/offline_demo/`
+- [ ] Verify that simulated scenarios are visibly labelled before demonstrating without network access
 
 ## Demo Flow (0-150s)
 ### 0-30s: Context

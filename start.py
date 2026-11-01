@@ -97,7 +97,7 @@ def main():
         print(f"    → Install: pip install {' '.join(missing_req)}")
     print(f"  Optional deps missing: {len(missing_opt)}")
     print(f"  API Mode: Demo-capable with real-data hooks")
-    print(f"  Offline assets: data_samples/real_data/offline_demo/")
+    print("  Offline package: unavailable (no verified packaged public-data subset)")
     print("=" * 67)
     print("\n🚀 Starting server...")
     print("✨ Landing Page:       http://localhost:8000")

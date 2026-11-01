@@ -7,4 +7,4 @@
 5. **Show Ranked Vessel Leads** – Review culprit list with scores, behavioral anomalies, dark vessels, repeat offenders.
 6. **Generate Dossier** – Click "Generate Forensic Dossier", review sources/timestamps/cache/uncertainty, export PDF/Markdown.
 
-**Fallbacks:** If internet fails, use packaged offline assets in `data_samples/real_data/offline_demo/` and demo scenarios. Error messages guide API startup.
+**Fallbacks:** If internet fails, use the clearly labelled simulated scenarios. A real-data offline package is not shipped until it can be built with verified source provenance.

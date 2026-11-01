@@ -2191,7 +2191,7 @@
           try {
             const modal = document.createElement('div');
             modal.className = 'fixed inset-0 bg-black/40 backdrop-blur-sm z-[80] flex items-center justify-center p-4';
-            modal.innerHTML = `<div class="w-full max-w-sm rounded-3xl bg-white shadow-2xl overflow-hidden p-5 space-y-2"><div class="text-sm font-extrabold">Network failure detected</div><div class="text-xs text-neutral-600">Using offline fallback with packaged assets.</div><div class="text-[10px] font-mono text-neutral-500">data_samples/real_data/offline_demo/ (small_sar_crop.tif, ais_subset.csv, metocean_cache.json)</div><button id="offOk" class="px-3 py-1 rounded-lg bg-neutral-900 text-white text-[10px]">OK</button></div>`;
+            modal.innerHTML = `<div class="w-full max-w-sm rounded-3xl bg-white shadow-2xl overflow-hidden p-5 space-y-2"><div class="text-sm font-extrabold">Network failure detected</div><div class="text-xs text-neutral-600">No verified real-data offline package is installed.</div><div class="text-[10px] font-mono text-neutral-500">Use a clearly labelled simulated scenario until the connection returns.</div><button id="offOk" class="px-3 py-1 rounded-lg bg-neutral-900 text-white text-[10px]">OK</button></div>`;
             document.body.appendChild(modal);
             modal.querySelector('#offOk').onclick = () => modal.remove();
           } catch(_) {}
@@ -3218,7 +3218,7 @@
         alert(`NOAA AIS complete.\n\nRecords kept: ${subset.records_kept}\nVessels normalized: ${correlation.vessels_loaded}\nRanked candidate tracks: ${correlation.matches.length}\n\nThe resulting scores are investigative leads, not proof of responsibility.`);
       } catch (error) {
         if (document.getElementById('noaaProgressText')) document.getElementById('noaaProgressText').textContent = 'Failed';
-        alert(`NOAA AIS import could not complete: ${error.message || error}\n\nIf this is a network/CORS issue, try offline fallback with packaged assets.`);
+        alert(`NOAA AIS import could not complete: ${error.message || error}\n\nNo verified real-data offline package is installed; use a labelled simulated scenario if the network is unavailable.`);
       } finally {
         btnNOAAAIS.disabled = false;
         btnNOAAAIS.innerHTML = original;
@@ -4319,7 +4319,7 @@
           </div>
           <div class="px-5 py-3 border-t flex items-center justify-between">
             <button id="demoSave" class="px-3 py-1 rounded-lg text-[10px] font-bold bg-emerald-600 text-white">Save run manifest</button>
-            <button id="demoOffline" class="px-3 py-1 rounded-lg text-[10px] font-bold bg-neutral-800 text-white">Load offline assets</button>
+            <button id="demoOffline" class="px-3 py-1 rounded-lg text-[10px] font-bold bg-neutral-800 text-white">Network note</button>
           </div>
         </div>
       `;
@@ -4335,12 +4335,12 @@
       modal.querySelector('#demoSave').onclick = async () => {
         const bbox = [-95, 27, -90, 30];
         try {
-          const r = await fetch('/api/runs/save', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'demo-stepper-run',bbox,start_time:'2020-08-06T00:00:00Z',end_time:'2020-08-07T23:59:00Z',scenario_id:window.currentScenarioId||'scenario_wakashio_validation',source_urls:['https://sentinel-s1-rtc-indigo.s3.us-west-2.amazonaws.com/'],parameters:{flow:'demo-this'},cached_files:['data_samples/real_data/offline_demo/small_sar_crop.tif','data_samples/real_data/offline_demo/ais_subset.csv','data_samples/real_data/offline_demo/metocean_cache.json'],notes:'Saved from guided demo stepper'})});
+          const r = await fetch('/api/runs/save', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'demo-stepper-run',bbox,start_time:'2020-08-06T00:00:00Z',end_time:'2020-08-07T23:59:00Z',scenario_id:window.currentScenarioId||'scenario_wakashio_validation',source_urls:['https://sentinel-s1-rtc-indigo.s3.us-west-2.amazonaws.com/'],parameters:{flow:'demo-this',real_data_offline_package:'not_shipped'},cached_files:[],notes:'Saved from guided demo stepper'})});
           const j = await r.json(); alert('Run saved: ' + (j.run_id||j.path));
         } catch(e){ alert('Save failed: ' + e.message); }
       };
       modal.querySelector('#demoOffline').onclick = () => {
-        alert('Offline fallback: using packaged assets from data_samples/real_data/offline_demo/ (small_sar_crop.tif, ais_subset.csv, metocean_cache.json).');
+        alert('No real-data offline package is installed. Use a clearly labelled simulated scenario if the network is unavailable.');
       };
     }
 
@@ -4352,7 +4352,7 @@
     const btnOfflineFallback = document.getElementById('btnOfflineFallback');
     if (btnOfflineFallback) {
       btnOfflineFallback.addEventListener('click', () => {
-        alert('Offline fallback active. If internet fails, use Demo this → Load offline assets with packaged offline demo package.');
+        alert('No real-data offline package is installed. If internet fails, use a clearly labelled simulated scenario.');
       });
     }
 
@@ -6499,7 +6499,7 @@
           try {
             const modal = document.createElement('div');
             modal.className = 'fixed inset-0 bg-black/40 backdrop-blur-sm z-[80] flex items-center justify-center p-4';
-            modal.innerHTML = `<div class="w-full max-w-sm rounded-3xl bg-white shadow-2xl overflow-hidden p-5 space-y-2"><div class="text-sm font-extrabold">Network failure detected</div><div class="text-xs text-neutral-600">Using offline fallback with packaged assets.</div><div class="text-[10px] font-mono text-neutral-500">data_samples/real_data/offline_demo/ (small_sar_crop.tif, ais_subset.csv, metocean_cache.json)</div><button id="offOk" class="px-3 py-1 rounded-lg bg-neutral-900 text-white text-[10px]">OK</button></div>`;
+            modal.innerHTML = `<div class="w-full max-w-sm rounded-3xl bg-white shadow-2xl overflow-hidden p-5 space-y-2"><div class="text-sm font-extrabold">Network failure detected</div><div class="text-xs text-neutral-600">No verified real-data offline package is installed.</div><div class="text-[10px] font-mono text-neutral-500">Use a clearly labelled simulated scenario until the connection returns.</div><button id="offOk" class="px-3 py-1 rounded-lg bg-neutral-900 text-white text-[10px]">OK</button></div>`;
             document.body.appendChild(modal);
             modal.querySelector('#offOk').onclick = () => modal.remove();
           } catch(_) {}
@@ -7501,7 +7501,7 @@
         alert(`NOAA AIS complete.\n\nRecords kept: ${subset.records_kept}\nVessels normalized: ${correlation.vessels_loaded}\nRanked candidate tracks: ${correlation.matches.length}\n\nThe resulting scores are investigative leads, not proof of responsibility.`);
       } catch (error) {
         if (document.getElementById('noaaProgressText')) document.getElementById('noaaProgressText').textContent = 'Failed';
-        alert(`NOAA AIS import could not complete: ${error.message || error}\n\nIf this is a network/CORS issue, try offline fallback with packaged assets.`);
+        alert(`NOAA AIS import could not complete: ${error.message || error}\n\nNo verified real-data offline package is installed; use a labelled simulated scenario if the network is unavailable.`);
       } finally {
         btnNOAAAIS.disabled = false;
         btnNOAAAIS.innerHTML = original;
@@ -8576,7 +8576,7 @@
       _sarEnlargedPanState = null;
     }
 
-    // Demo wizard and offline fallback
+    // Demo wizard and network-unavailable notice
     const btnDemoWizard = document.getElementById('btnDemoWizard');
     if (btnDemoWizard) {
       btnDemoWizard.addEventListener('click', async () => {
@@ -8594,8 +8594,8 @@
               end_time: '2020-08-07T23:59:00Z',
               scenario_id: window.currentScenarioId || 'scenario_wakashio_validation',
               source_urls: ['https://sentinel-s1-rtc-indigo.s3.us-west-2.amazonaws.com/'],
-              parameters: {mode: 'demo', offline_fallback_available: true},
-              cached_files: ['data_samples/real_data/offline_demo/ais_subset.csv', 'data_samples/real_data/offline_demo/metocean_cache.json'],
+              parameters: {mode: 'demo', real_data_offline_package: 'not_shipped'},
+              cached_files: [],
               notes: 'Rehearsed demo sequence initiated from UI'
             })
           }).catch(() => {});
@@ -8608,7 +8608,7 @@
     const btnOfflineFallback = document.getElementById('btnOfflineFallback');
     if (btnOfflineFallback) {
       btnOfflineFallback.addEventListener('click', () => {
-        alert('Offline fallback active.\nUsing packaged assets from data_samples/real_data/offline_demo/ if present.\nDemo scenarios and cached data will be used when network is unavailable.');
+        alert('No real-data offline package is installed.\nUse the clearly labelled simulated scenarios when the network is unavailable.');
       });
     }
 
