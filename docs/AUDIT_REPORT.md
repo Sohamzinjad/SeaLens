@@ -75,3 +75,20 @@ cd frontend && npm run build
 | Offline package claims | REMOVED | Removed `data_samples/real_data/offline_demo/` and `scripts/package_offline_demo.sh`; UI and documentation now state that no verified real-data offline package is shipped. |
 
 The exact public-source URLs, classifications, crop hash, and processing limitations are in `docs/DATA_PROVENANCE.md`. The server was restarted after the stalled AIS request so the remaining API checks could continue.
+
+## Phase 5 — Scalability review
+
+Local smoke latency, concurrency result, bottlenecks, and deployment recommendations are recorded in `docs/SCALABILITY_AUDIT.md`. The main finding is that the synchronous NOAA daily-archive import can block the single development worker; it requires background-job handling before production use.
+
+## Phase 6 — Final verification
+
+| Check | Result |
+| --- | --- |
+| Undefined-name lint | PASS — `pyflakes` produced no `undefined name` findings. |
+| Python tests | PASS — 29 passed. |
+| Frontend build | PASS — `npm run build` completed. |
+| Scenario endpoint matrix | PASS — 7 scenarios x 9 scenario routes, all HTTP 200. |
+| Provenance API/dossier | PASS — scenario JSON exposes `data_provenance`; the dossier contains a visible Data Provenance section. |
+| Diff whitespace | PASS — `git diff --check` completed with no findings. |
+
+The test suite still emits existing Python 3.14 deprecation warnings for `datetime.utcnow()` and Starlette's test client. They do not fail the current suite but should be addressed before a Python-version upgrade becomes mandatory.
